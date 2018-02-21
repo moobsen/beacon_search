@@ -28,6 +28,18 @@ import logging
 import geopy
 import geopy.distance
 
+#################### PARAMETERS ################################################
+#GPIOs (using BCM style)
+BUTTON_LEFT_PIN  = 17
+BUTTON_RIGHT_PIN = 18
+LED_GREEN_PIN  = 23
+LED_RED_PIN    = 24
+#other parameters
+START_ALTITUDE = 6# in meters
+FLY_ALTITUDE = 6  # in meters
+FLY_SPEED = 10 # in meters/second
+
+
 def connect(connection_string):
   try:
     # connect to the vehicle
@@ -100,15 +112,24 @@ def main():
     start = vehicle.location.global_frame
     bearing = vehicle.heading
     #step2 arm and takeoff
-    arm_and_takeoff(3, vehicle)
+    arm_and_takeoff(START_ALTITUDE, vehicle)
     #step3 calculate search path
     d = geopy.distance.VincentyDistance(meters = 10)
     dest = d.destination(geopy.Point(start.lat, start.lon), bearing)
-    drone_dest = dronekit.LocationGlobalRelative(dest.latitude, dest.longitude, 3)
+    drone_dest = dronekit.LocationGlobalRelative(dest.latitude, dest.longitude, 
+      FLY_ALTITUDE)
     #(can be various patterns)(can be parralel to step2)
     #step4 follow the search path until signal is found (or battery is empty)
     vehicle.simple_goto(drone_dest)
-    
+    time.sleep(10)
+    start = vehicle.location.global_frame
+    d = geopy.distance.VincentyDistance(meters = 10)
+    dest = d.destination(geopy.Point(start.lat, start.lon), bearing-90)
+    drone_dest = dronekit.LocationGlobalRelative(dest.latitude, dest.longitude, 
+      FLY_ALTITUDE)
+    vehicle.simple_goto(drone_dest)
+    time.sleep(10)
+
     vehicle.mode = dronekit.VehicleMode('LAND')
   except Exception as e:
     logging.error("Caught exeption")
