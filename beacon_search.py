@@ -38,7 +38,9 @@ LED_RED_PIN    = 24
 START_ALTITUDE = 6# in meters
 FLY_ALTITUDE = 6  # in meters
 FLY_SPEED = 10 # in meters/second
-
+MEANDER_DISTANCE = 3 #in meters
+MEANDER_COUNT = 10
+SEARCH_ANGLE = 60 #in degrees
 
 def connect(connection_string):
   try:
@@ -97,11 +99,11 @@ def main():
       print("no connection specified via --connect, exiting")
       sys.exit()
     if args.log:
-      logging.basicConfig(filename='log-follow.log', level=args.log.upper())
+      logging.basicConfig(filename='search.log', level=args.log.upper())
     else:
       print('No loging level specified, using WARNING')
       logging.basicConfig(filename='log-follow.log', level='WARNING')
-    logging.warning('###x############### Starting script log ##################')
+    logging.warning('################## Starting script log ##################')
     logging.info("System Time:" + time.strftime("%c"))
     vehicle = 'None'
     while vehicle == 'None':
@@ -114,21 +116,34 @@ def main():
     #step2 arm and takeoff
     arm_and_takeoff(START_ALTITUDE, vehicle)
     #step3 calculate search path
-    d = geopy.distance.VincentyDistance(meters = 10)
-    dest = d.destination(geopy.Point(start.lat, start.lon), bearing)
-    drone_dest = dronekit.LocationGlobalRelative(dest.latitude, dest.longitude, 
-      FLY_ALTITUDE)
-    #(can be various patterns)(can be parralel to step2)
-    #step4 follow the search path until signal is found (or battery is empty)
-    vehicle.simple_goto(drone_dest)
-    time.sleep(10)
-    start = vehicle.location.global_frame
-    d = geopy.distance.VincentyDistance(meters = 10)
-    dest = d.destination(geopy.Point(start.lat, start.lon), bearing-90)
-    drone_dest = dronekit.LocationGlobalRelative(dest.latitude, dest.longitude, 
-      FLY_ALTITUDE)
-    vehicle.simple_goto(drone_dest)
-    time.sleep(10)
+    sign=1
+    for i in range(1,MEANDER_COUNT):
+      #go straight
+      curr = vehicle.location.global_frame
+      d = geopy.distance.VincentyDistance(meters = MEANDER_DISTANCE)
+      dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing)
+      drone_dest = dronekit.LocationGlobalRelative(dest.latitude,
+        dest.longitude, FLY_ALTITUDE)
+      logging.info('Going to: %s' % drone_dest)
+      vehicle.simple_goto(drone_dest)
+      time.sleep(2)
+      while vehicle.groundspeed > 0.5:
+        time.sleep(1)
+      #go sideways
+      curr = vehicle.location.global_frame
+      tan_y = math.tan(math.radians(SEARCH_ANGLE/2))
+      d = geopy.distance.VincentyDistance(
+        meters = 2*i*MEANDER_DISTANCE*tan_y-tan_y*MEANDER_DISTANCE )
+      dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing+90*sign)
+      drone_dest = dronekit.LocationGlobalRelative(dest.latitude, 
+        dest.longitude, FLY_ALTITUDE)
+      logging.info('Going to: %s' % drone_dest)
+      vehicle.simple_goto(drone_dest)
+      time.sleep(2)
+      while vehicle.groundspeed > 0.5:
+        time.sleep(1)
+      sign=sign*-1
+      i=i+1
 
     vehicle.mode = dronekit.VehicleMode('LAND')
   except Exception as e:
