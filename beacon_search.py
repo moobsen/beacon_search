@@ -27,13 +27,11 @@ import math
 import logging
 import geopy
 import geopy.distance
+import RPi.GPIO as GPIO
 
 #################### PARAMETERS ################################################
 #GPIOs (using BCM style)
-BUTTON_LEFT_PIN  = 17
-BUTTON_RIGHT_PIN = 18
-LED_GREEN_PIN  = 23
-LED_RED_PIN    = 24
+BEACON_INPUT_PIN  = 17
 #other parameters
 START_ALTITUDE = 6# in meters
 FLY_ALTITUDE = 6  # in meters
@@ -41,6 +39,10 @@ FLY_SPEED = 10 # in meters/second
 MEANDER_DISTANCE = 3 #in meters
 MEANDER_COUNT = 10
 SEARCH_ANGLE = 60 #in degrees
+
+def setup_buttons():
+  GPIO.setmode(GPIO.BCM)
+  GPIO.setup(BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
 def connect(connection_string):
   try:
@@ -85,7 +87,16 @@ def arm_and_takeoff(aTargetAltitude, vehicle):
 
 
 def main():
+  def interrupt_button_1(channel):
+    if GPIO.input(BEACON_INPUT_PIN) == 1: 
+      #beacon found
+      logging.warning("Beacon found, landing!")
+      vehicle.mode = dronekit.VehicleMode("LAND")
+
+  setup_buttons()
   try:
+    GPIO.add_event_detect(BEACON_INPUT_PIN, GPIO.RISING,
+      callback = interrupt_button_1, bouncetime = 100)
     parser = argparse.ArgumentParser(
       description='Searches for beacon')
     parser.add_argument('--connect', 
