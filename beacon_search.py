@@ -129,6 +129,9 @@ def main():
     #step3 calculate search path
     sign=1
     for i in range(1,MEANDER_COUNT):
+      if vehicle.mode.name != "GUIDED":
+        logging.warning("Flight mode changed - aborting follow-me")
+        break
       #go straight
       curr = vehicle.location.global_frame
       d = geopy.distance.VincentyDistance(meters = MEANDER_DISTANCE)
