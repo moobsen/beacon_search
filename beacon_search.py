@@ -36,8 +36,8 @@ BEACON_INPUT_PIN  = 17
 START_ALTITUDE = 6# in meters
 FLY_ALTITUDE = 6  # in meters
 FLY_SPEED = 10 # in meters/second
-MEANDER_DISTANCE = 3 #in meters
-MEANDER_COUNT = 10
+MEANDER_DISTANCE = 10 #in meters
+MEANDER_COUNT = 4
 SEARCH_ANGLE = 60 #in degrees
 
 def setup_buttons():
@@ -140,7 +140,7 @@ def main():
         dest.longitude, FLY_ALTITUDE)
       logging.info('Going to: %s' % drone_dest)
       vehicle.simple_goto(drone_dest)
-      time.sleep(2)
+      time.sleep(3)
       while vehicle.groundspeed > 0.5:
         time.sleep(1)
       #go sideways
@@ -153,7 +153,7 @@ def main():
         dest.longitude, FLY_ALTITUDE)
       logging.info('Going to: %s' % drone_dest)
       vehicle.simple_goto(drone_dest)
-      time.sleep(2)
+      time.sleep(3)
       while vehicle.groundspeed > 0.5:
         time.sleep(1)
       sign=sign*-1
