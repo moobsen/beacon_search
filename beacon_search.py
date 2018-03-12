@@ -34,11 +34,11 @@ import RPi.GPIO as GPIO
 BEACON_INPUT_PIN  = 17
 #other parameters
 START_ALTITUDE = 6# in meters
-FLY_ALTITUDE = 6  # in meters
+FLY_ALTITUDE = 3  # in meters
 FLY_SPEED = 10 # in meters/second
-MEANDER_DISTANCE = 10 #in meters
+MEANDER_DISTANCE = 5 #in meters
 MEANDER_COUNT = 4
-SEARCH_ANGLE = 60 #in degrees
+SEARCH_ANGLE = 30 #in degrees
 
 def setup_buttons():
   GPIO.setmode(GPIO.BCM)
@@ -95,8 +95,6 @@ def main():
 
   setup_buttons()
   try:
-    GPIO.add_event_detect(BEACON_INPUT_PIN, GPIO.RISING,
-      callback = interrupt_button_1, bouncetime = 100)
     parser = argparse.ArgumentParser(
       description='Searches for beacon')
     parser.add_argument('--connect', 
@@ -126,6 +124,10 @@ def main():
     bearing = vehicle.heading
     #step2 arm and takeoff
     arm_and_takeoff(START_ALTITUDE, vehicle)
+    #add the interupt event here
+    GPIO.add_event_detect(BEACON_INPUT_PIN, GPIO.RISING,
+      callback = interrupt_button_1, bouncetime = 100)
+
     #step3 calculate search path
     sign=1
     for i in range(1,MEANDER_COUNT):
