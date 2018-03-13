@@ -118,50 +118,17 @@ def main():
     while vehicle == 'None':
       vehicle = connect(connection_string)
 
-    #vehicle.groundspeed = SPEED #m/s
-    #step1 check direction the drone is facing
-    start = vehicle.location.global_frame
-    bearing = vehicle.heading
-    #step2 arm and takeoff
+    #step1 arm and takeoff
     arm_and_takeoff(START_ALTITUDE, vehicle)
-    #add the interupt event here
+    #step2 wait for signal
     GPIO.add_event_detect(BEACON_INPUT_PIN, GPIO.RISING,
       callback = interrupt_button_1, bouncetime = 100)
-
-    #step3 calculate search path
-    sign=1
-    for i in range(1,MEANDER_COUNT):
+    while True:
+      time.sleep(1)
       if vehicle.mode.name != "GUIDED":
         logging.warning("Flight mode changed - aborting follow-me")
         break
-      #go straight
-      curr = vehicle.location.global_frame
-      d = geopy.distance.VincentyDistance(meters = MEANDER_DISTANCE)
-      dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing)
-      drone_dest = dronekit.LocationGlobalRelative(dest.latitude,
-        dest.longitude, FLY_ALTITUDE)
-      logging.info('Going to: %s' % drone_dest)
-      vehicle.simple_goto(drone_dest)
-      time.sleep(3)
-      while vehicle.groundspeed > 0.5:
-        time.sleep(1)
-      #go sideways
-      curr = vehicle.location.global_frame
-      tan_y = math.tan(math.radians(SEARCH_ANGLE/2))
-      d = geopy.distance.VincentyDistance(
-        meters = 2*i*MEANDER_DISTANCE*tan_y-tan_y*MEANDER_DISTANCE )
-      dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing+90*sign)
-      drone_dest = dronekit.LocationGlobalRelative(dest.latitude, 
-        dest.longitude, FLY_ALTITUDE)
-      logging.info('Going to: %s' % drone_dest)
-      vehicle.simple_goto(drone_dest)
-      time.sleep(3)
-      while vehicle.groundspeed > 0.5:
-        time.sleep(1)
-      sign=sign*-1
-      i=i+1
 
-    vehicle.mode = dronekit.VehicleMode('LAND')
   except Exception as e:
     logging.error("Caught exeption")
     logging.error(traceback.format_exc())
