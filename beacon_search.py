@@ -33,8 +33,8 @@ import RPi.GPIO as GPIO
 #GPIOs (using BCM style)
 BEACON_INPUT_PIN  = 17
 #other parameters
-START_ALTITUDE = 6# in meters
-FLY_ALTITUDE = 3  # in meters
+START_ALTITUDE = 2# in meters
+FLY_ALTITUDE = 2  # in meters
 FLY_SPEED = 10 # in meters/second
 MEANDER_DISTANCE = 5 #in meters
 MEANDER_COUNT = 4
@@ -48,7 +48,7 @@ def connect(connection_string):
   try:
     # connect to the vehicle
     logging.info('Connecting to vehicle on: %s' % connection_string)
-    vehicle = dronekit.connect(connection_string, wait_ready=True)
+    vehicle = dronekit.connect(connection_string, wait_ready=True, baud=57600)
     cmds = vehicle.commands
     cmds.download()
     cmds.wait_ready()
