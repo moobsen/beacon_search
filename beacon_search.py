@@ -33,12 +33,12 @@ import RPi.GPIO as GPIO
 #GPIOs (using BCM style)
 BEACON_INPUT_PIN  = 17
 #other parameters
-START_ALTITUDE = 6# in meters
-FLY_ALTITUDE = 3  # in meters
-FLY_SPEED = 10 # in meters/second
+START_ALTITUDE = 2# in meters
+FLY_ALTITUDE = 2  # in meters
+FLY_SPEED = 3 # in meters/second
 MEANDER_DISTANCE = 5 #in meters
 MEANDER_COUNT = 4
-SEARCH_ANGLE = 30 #in degrees
+SEARCH_ANGLE = 45 #in degrees
 
 def setup_buttons():
   GPIO.setmode(GPIO.BCM)
@@ -71,9 +71,9 @@ def arm_and_takeoff(aTargetAltitude, vehicle):
   # Copter should arm in GUIDED mode
   vehicle.mode = dronekit.VehicleMode("GUIDED")
   vehicle.armed = True  
-  while not vehicle.armed:    
-    logging.info(" Waiting for arming...")
-    time.sleep(1)
+  #while not vehicle.armed:    
+  #  logging.info(" Waiting for arming...")
+  #  time.sleep(1)
   logging.info("Taking off!")
   vehicle.simple_takeoff(aTargetAltitude)
   # check if height is safe before going anywhere
