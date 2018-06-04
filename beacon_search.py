@@ -28,6 +28,7 @@ import logging
 import geopy
 import geopy.distance
 import RPi.GPIO as GPIO
+from pymavlink import mavutil
 
 #################### PARAMETERS ################################################
 #GPIOs (using BCM style)
@@ -43,6 +44,30 @@ SEARCH_ANGLE = 30 #in degrees
 def setup_buttons():
   GPIO.setmode(GPIO.BCM)
   GPIO.setup(BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+
+def goto_position_target_global_int(aLocation, vehicle):
+    """
+    Send SET_POSITION_TARGET_GLOBAL_INT command to request the vehicle fly to a specified location.
+
+    See the above link for information on the type_mask (0=enable, 1=ignore). 
+    At time of writing, acceleration and yaw bits are ignored.
+    """
+    msg = vehicle.message_factory.set_position_target_global_int_encode(
+        0,       # time_boot_ms (not used)
+        0, 0,    # target system, target component
+        mavutil.mavlink.MAV_FRAME_GLOBAL_TERRAIN_ALT_INT, # frame      
+        0b0000111111111000, # type_mask (only speeds enabled)
+        aLocation.lat*1e7, # lat_int - X Position in WGS84 frame in 1e7 * meters
+        aLocation.lon*1e7, # lon_int - Y Position in WGS84 frame in 1e7 * meters
+        aLocation.alt, # alt - Altitude in meters in AMSL altitude, not WGS84 if absolute or relative, above terrain if GLOBAL_TERRAIN_ALT_INT
+        0, # X velocity in NED frame in m/s
+        0, # Y velocity in NED frame in m/s
+        0, # Z velocity in NED frame in m/s
+        0, 0, 0, # afx, afy, afz acceleration (not supported yet, ignored in GCS_Mavlink)
+        0, 0)    # yaw, yaw_rate (not supported yet, ignored in GCS_Mavlink) 
+    # send command to vehicle
+    vehicle.send_mavlink(msg)
+    vehicle.flush()
 
 def connect(connection_string):
   try:
@@ -130,7 +155,7 @@ def main():
 
     #step3 calculate search path
     sign=1
-    for i in range(1,MEANDER_COUNT):
+    for i in range(1,MEANDER_COUNT+1):
       if vehicle.mode.name != "GUIDED":
         logging.warning("Flight mode changed - aborting follow-me")
         break
@@ -138,10 +163,11 @@ def main():
       curr = vehicle.location.global_frame
       d = geopy.distance.VincentyDistance(meters = MEANDER_DISTANCE)
       dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing)
-      drone_dest = dronekit.LocationGlobalRelative(dest.latitude,
+      drone_dest = dronekit.LocationGlobal(dest.latitude,
         dest.longitude, FLY_ALTITUDE)
       logging.info('Going to: %s' % drone_dest)
-      vehicle.simple_goto(drone_dest)
+      goto_position_target_global_int(drone_dest, vehicle)
+#      vehicle.simple_goto(drone_dest)
       time.sleep(3)
       while vehicle.groundspeed > 0.5:
         time.sleep(1)
@@ -151,10 +177,11 @@ def main():
       d = geopy.distance.VincentyDistance(
         meters = 2*i*MEANDER_DISTANCE*tan_y-tan_y*MEANDER_DISTANCE )
       dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing+90*sign)
-      drone_dest = dronekit.LocationGlobalRelative(dest.latitude, 
+      drone_dest = dronekit.LocationGlobal(dest.latitude, 
         dest.longitude, FLY_ALTITUDE)
       logging.info('Going to: %s' % drone_dest)
-      vehicle.simple_goto(drone_dest)
+      goto_position_target_global_int(drone_dest, vehicle)
+      #vehicle.simple_goto(drone_dest)
       time.sleep(3)
       while vehicle.groundspeed > 0.5:
         time.sleep(1)
