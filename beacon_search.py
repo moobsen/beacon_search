@@ -19,7 +19,6 @@
 import dronekit
 import argparse
 import traceback
-import gps
 import threading
 import time
 import sys
@@ -42,7 +41,7 @@ MEANDER_COUNT = 4
 SEARCH_ANGLE = 45 #in degrees
 
 def setup_buttons():
-  GPIO.setmode(GPIO.BCM)
+  #GPIO.setmode(GPIO.BCM)
   GPIO.setup(BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
 def goto_position_target_global_int(aLocation, vehicle):
@@ -103,8 +102,8 @@ def arm_and_takeoff(aTargetAltitude, vehicle):
   vehicle.simple_takeoff(aTargetAltitude)
   # check if height is safe before going anywhere
   while True:
-    logging.info(" Altitude: %s"%vehicle.location.global_relative_frame.alt)
-    if vehicle.location.global_relative_frame.alt>=aTargetAltitude*0.7: 
+    logging.info(" Altitude: %s"%vehicle.location.local_frame.alt)
+    if vehicle.location.local_frame.alt>=aTargetAltitude*0.7: 
       #Trigger just below target alt.
       logging.info("Reached target altitude")
       break
