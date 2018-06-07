@@ -36,12 +36,12 @@ BEACON_INPUT_PIN  = 17
 START_ALTITUDE = 2# in meters
 FLY_ALTITUDE = 2  # in meters
 FLY_SPEED = 3 # in meters/second
-MEANDER_DISTANCE = 5 #in meters
-MEANDER_COUNT = 4
-SEARCH_ANGLE = 45 #in degrees
+MEANDER_DISTANCE = 3 #in meters
+MEANDER_COUNT = 3
+SEARCH_ANGLE = 30 #in degrees
 
 def setup_buttons():
-  #GPIO.setmode(GPIO.BCM)
+  GPIO.setmode(GPIO.BCM)
   GPIO.setup(BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
 def goto_position_target_global_int(aLocation, vehicle):
@@ -72,7 +72,7 @@ def connect(connection_string):
   try:
     # connect to the vehicle
     logging.info('Connecting to vehicle on: %s' % connection_string)
-    vehicle = dronekit.connect(connection_string, wait_ready=True)
+    vehicle = dronekit.connect(connection_string, wait_ready=False)
     cmds = vehicle.commands
     cmds.download()
     cmds.wait_ready()
@@ -102,8 +102,8 @@ def arm_and_takeoff(aTargetAltitude, vehicle):
   vehicle.simple_takeoff(aTargetAltitude)
   # check if height is safe before going anywhere
   while True:
-    logging.info(" Altitude: %s"%vehicle.location.local_frame.alt)
-    if vehicle.location.local_frame.alt>=aTargetAltitude*0.7: 
+    logging.info(" Altitude: %s"%vehicle.rangefinder.distance)
+    if vehicle.rangefinder.distance>=aTargetAltitude*0.8: 
       #Trigger just below target alt.
       logging.info("Reached target altitude")
       break
@@ -168,7 +168,7 @@ def main():
       goto_position_target_global_int(drone_dest, vehicle)
 #      vehicle.simple_goto(drone_dest)
       time.sleep(3)
-      while vehicle.groundspeed > 0.5:
+      while vehicle.groundspeed > 0.4:
         time.sleep(1)
       #go sideways
       curr = vehicle.location.global_frame
@@ -186,7 +186,7 @@ def main():
         time.sleep(1)
       sign=sign*-1
       i=i+1
-
+    logging.info('left search mode')
     vehicle.mode = dronekit.VehicleMode('LAND')
   except Exception as e:
     logging.error("Caught exeption")
