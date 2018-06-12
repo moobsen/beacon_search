@@ -33,6 +33,7 @@ from pymavlink import mavutil
 #GPIOs (using BCM style)
 BEACON_INPUT_PIN  = 17
 #other parameters
+CON_TIMEOUT = 15 # in seconds, time between connection attempts
 START_ALTITUDE = 2# in meters
 FLY_ALTITUDE = 2  # in meters
 FLY_SPEED = 3 # in meters/second
@@ -141,6 +142,7 @@ def main():
     vehicle = 'None'
     while vehicle == 'None':
       vehicle = connect(connection_string)
+      sleep(CON_TIMEOUT)
 
     #vehicle.groundspeed = SPEED #m/s
     #step1 check direction the drone is facing
@@ -166,7 +168,6 @@ def main():
         dest.longitude, FLY_ALTITUDE)
       logging.info('Going to: %s' % drone_dest)
       goto_position_target_global_int(drone_dest, vehicle)
-#      vehicle.simple_goto(drone_dest)
       time.sleep(3)
       while vehicle.groundspeed > 0.4:
         time.sleep(1)
@@ -180,7 +181,6 @@ def main():
         dest.longitude, FLY_ALTITUDE)
       logging.info('Going to: %s' % drone_dest)
       goto_position_target_global_int(drone_dest, vehicle)
-      #vehicle.simple_goto(drone_dest)
       time.sleep(3)
       while vehicle.groundspeed > 0.5:
         time.sleep(1)
