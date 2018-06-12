@@ -142,7 +142,7 @@ def main():
     vehicle = 'None'
     while vehicle == 'None':
       vehicle = connect(connection_string)
-      sleep(CON_TIMEOUT)
+      time.sleep(CON_TIMEOUT)
 
     #vehicle.groundspeed = SPEED #m/s
     #step1 check direction the drone is facing
