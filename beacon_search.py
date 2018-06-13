@@ -28,18 +28,17 @@ import geopy
 import geopy.distance
 import RPi.GPIO as GPIO
 from pymavlink import mavutil
+from yaml import load
 
-#################### PARAMETERS ################################################
-#GPIOs (using BCM style)
-BEACON_INPUT_PIN  = 17
-#other parameters
-CON_TIMEOUT = 15 # in seconds, time between connection attempts
-START_ALTITUDE = 2# in meters
-FLY_ALTITUDE = 2  # in meters
-FLY_SPEED = 3 # in meters/second
-MEANDER_DISTANCE = 3 #in meters
-MEANDER_COUNT = 3
-SEARCH_ANGLE = 30 #in degrees
+#parameters now come from PARAMETERS.yaml
+
+def load_parameters():
+  stream = file('PARAMETERS.yaml', 'r')
+  params = load(stream)
+  logging.info('Loaded parameters: %s' % params)
+  return params
+
+BEACON_INPUT_PIN = 17 #global GPIO PIN number (I know)
 
 def setup_buttons():
   GPIO.setmode(GPIO.BCM)
@@ -136,36 +135,37 @@ def main():
       logging.basicConfig(filename='search.log', level=args.log.upper())
     else:
       print('No loging level specified, using WARNING')
-      logging.basicConfig(filename='log-follow.log', level='WARNING')
-    logging.warning('################## Starting script log ##################')
+      logging.basicConfig(filename='search.log', level='WARNING')
+    logging.info('################## Starting script log ##################')
     logging.info("System Time:" + time.strftime("%c"))
+    params = load_parameters()
     vehicle = 'None'
     while vehicle == 'None':
       vehicle = connect(connection_string)
-      time.sleep(CON_TIMEOUT)
+      time.sleep(params["CON_TIMEOUT"])
 
-    #vehicle.groundspeed = SPEED #m/s
+    vehicle.groundspeed = params["FLY_SPEED"]
     #step1 check direction the drone is facing
     start = vehicle.location.global_frame
     bearing = vehicle.heading
     #step2 arm and takeoff
-    arm_and_takeoff(START_ALTITUDE, vehicle)
+    arm_and_takeoff(params["START_ALTITUDE"], vehicle)
     #add the interupt event here
     GPIO.add_event_detect(BEACON_INPUT_PIN, GPIO.RISING,
       callback = interrupt_button_1, bouncetime = 100)
 
     #step3 calculate search path
     sign=1
-    for i in range(1,MEANDER_COUNT+1):
+    for i in range(1,params["MEANDER_COUNT"]+1):
       if vehicle.mode.name != "GUIDED":
         logging.warning("Flight mode changed - aborting follow-me")
         break
       #go straight
       curr = vehicle.location.global_frame
-      d = geopy.distance.VincentyDistance(meters = MEANDER_DISTANCE)
+      d = geopy.distance.VincentyDistance(meters = params["MEANDER_DISTANCE"])
       dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing)
       drone_dest = dronekit.LocationGlobal(dest.latitude,
-        dest.longitude, FLY_ALTITUDE)
+        dest.longitude, params["FLY_ALTITUDE"])
       logging.info('Going to: %s' % drone_dest)
       goto_position_target_global_int(drone_dest, vehicle)
       time.sleep(3)
@@ -173,12 +173,13 @@ def main():
         time.sleep(1)
       #go sideways
       curr = vehicle.location.global_frame
-      tan_y = math.tan(math.radians(SEARCH_ANGLE/2))
+      tan_y = math.tan(math.radians(params["SEARCH_ANGLE"]/2))
+      meander_d = params["MEANDER_DISTANCE"]
       d = geopy.distance.VincentyDistance(
-        meters = 2*i*MEANDER_DISTANCE*tan_y-tan_y*MEANDER_DISTANCE )
+        meters = 2*i*meander_d*tan_y - tan_y*meander_d )
       dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing+90*sign)
       drone_dest = dronekit.LocationGlobal(dest.latitude, 
-        dest.longitude, FLY_ALTITUDE)
+        dest.longitude, params["FLY_ALTITUDE"])
       logging.info('Going to: %s' % drone_dest)
       goto_position_target_global_int(drone_dest, vehicle)
       time.sleep(3)
