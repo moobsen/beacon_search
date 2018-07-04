@@ -28,13 +28,13 @@ import geopy
 import geopy.distance
 import RPi.GPIO as GPIO
 from pymavlink import mavutil
-from yaml import load
+from yaml import safe_load
 
 #parameters now come from PARAMETERS.yaml
 
 def load_parameters():
   stream = file('PARAMETERS.yaml', 'r')
-  params = load(stream)
+  params = safe_load(stream)
   logging.info('Loaded parameters: %s' % params)
   return params
 
@@ -90,7 +90,7 @@ def arm_and_takeoff(aTargetAltitude, vehicle):
   # don't let the user try to arm until autopilot is ready
   while not vehicle.is_armable:
     logging.info(" Waiting for vehicle to initialise...")
-    time.sleep(1)
+    time.sleep(params["WAIT_TIMEOUT"])
   logging.info("Arming motors")
   # Copter should arm in GUIDED mode
   vehicle.mode = dronekit.VehicleMode("GUIDED")

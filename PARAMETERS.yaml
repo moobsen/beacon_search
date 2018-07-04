@@ -1,7 +1,9 @@
 CON_TIMEOUT: 15 # in seconds, time between connection attempts
+WAIT_TIMEOUT: 5 # in seconds, time between armable checks
 START_ALTITUDE: 2 # in meters
 FLY_ALTITUDE: 2  # in meters
 FLY_SPEED: 3 # in meters/second
 MEANDER_DISTANCE: 3 #in meters
 MEANDER_COUNT: 3
 SEARCH_ANGLE: 30 #in degrees
+
