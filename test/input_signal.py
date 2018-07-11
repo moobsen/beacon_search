@@ -31,11 +31,11 @@ def main():
       #beacon found
       millis = int(round(time.time() * 1000))
       hits = 0
-      for x in range(0, 4):
+      for x in range(0, 39):
         if GPIO.input(BEACON_INPUT_PIN) == 0:
           hits = hits+1
-        time.sleep(0.01)
-      if hits > 3:
+        time.sleep(0.001)
+      if hits > 35:
         print(str(millis) + "  Signal detected!")
       else:
         print(str(millis) + " ignored")
@@ -45,7 +45,7 @@ def main():
     print("Starting Signal detector")
     #add the interupt event here
     GPIO.add_event_detect(BEACON_INPUT_PIN, GPIO.FALLING,
-      callback = interrupt_button_1, bouncetime = 10)
+      callback = interrupt_button_1, bouncetime = 40)
     while True:
       time.sleep(1)
   except Exception as e:

@@ -28,13 +28,13 @@ import geopy
 import geopy.distance
 import RPi.GPIO as GPIO
 from pymavlink import mavutil
-from yaml import safe_load
+from yaml import load
 
 #parameters now come from PARAMETERS.yaml
 
 def load_parameters():
   stream = file('PARAMETERS.yaml', 'r')
-  params = safe_load(stream)
+  params = load(stream)
   logging.info('Loaded parameters: %s' % params)
   return params
 
