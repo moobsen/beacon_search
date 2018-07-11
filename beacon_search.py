@@ -42,7 +42,7 @@ BEACON_INPUT_PIN = 17 #global GPIO PIN number (I know)
 
 def setup_buttons():
   GPIO.setmode(GPIO.BCM)
-  GPIO.setup(BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+  GPIO.setup(BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 def goto_position_target_global_int(aLocation, vehicle):
     """
@@ -112,11 +112,19 @@ def arm_and_takeoff(aTargetAltitude, vehicle, timeout_wait):
 
 def main():
   def interrupt_button_1(channel):
-    if GPIO.input(BEACON_INPUT_PIN) == 1: 
+    if GPIO.input(BEACON_INPUT_PIN) == 0:
       #beacon found
-      logging.warning("Beacon found, landing!")
-      vehicle.mode = dronekit.VehicleMode("LAND")
-
+      millis = int(round(time.time() * 1000))
+      hits = 0
+      for x in range(0, 39):
+        if GPIO.input(BEACON_INPUT_PIN) == 0:
+          hits = hits+1
+        time.sleep(0.001)
+      if hits > 35:
+        logging.info( str(millis) + "  Signal detected, initiating Land Mode!" )
+        vehicle.mode = dronekit.VehicleMode("LAND")
+      #else:
+      #  print("noise detected")
   setup_buttons()
   try:
     parser = argparse.ArgumentParser(
@@ -152,7 +160,7 @@ def main():
     arm_and_takeoff(params["START_ALTITUDE"], vehicle, params["WAIT_TIMEOUT"])
     #add the interupt event here
     GPIO.add_event_detect( BEACON_INPUT_PIN, GPIO.RISING,
-      callback = interrupt_button_1, bouncetime = 100 )
+      callback = interrupt_button_1, bouncetime = 40 )
 
     #step3 calculate search path
     sign=1
