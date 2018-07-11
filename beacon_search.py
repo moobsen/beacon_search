@@ -33,7 +33,7 @@ from yaml import load
 #parameters now come from PARAMETERS.yaml
 
 def load_parameters():
-  stream = file('PARAMETERS.yaml', 'r')
+  stream = file('/home/pi/src/moobsen/beacon_search/PARAMETERS.yaml', 'r')
   params = load(stream)
   logging.info('Loaded parameters: %s' % params)
   return params
@@ -82,7 +82,7 @@ def connect(connection_string):
     logging.error(traceback.format_exc())
     return 'None'
 
-def arm_and_takeoff(aTargetAltitude, vehicle):
+def arm_and_takeoff(aTargetAltitude, vehicle, timeout_wait):
   """
   Arms vehicle and fly to aTargetAltitude.
   """
@@ -90,7 +90,7 @@ def arm_and_takeoff(aTargetAltitude, vehicle):
   # don't let the user try to arm until autopilot is ready
   while not vehicle.is_armable:
     logging.info(" Waiting for vehicle to initialise...")
-    time.sleep(params["WAIT_TIMEOUT"])
+    time.sleep(timeout_wait)
   logging.info("Arming motors")
   # Copter should arm in GUIDED mode
   vehicle.mode = dronekit.VehicleMode("GUIDED")
@@ -149,10 +149,10 @@ def main():
     start = vehicle.location.global_frame
     bearing = vehicle.heading
     #step2 arm and takeoff
-    arm_and_takeoff(params["START_ALTITUDE"], vehicle)
+    arm_and_takeoff(params["START_ALTITUDE"], vehicle, params["WAIT_TIMEOUT"])
     #add the interupt event here
-    GPIO.add_event_detect(BEACON_INPUT_PIN, GPIO.RISING,
-      callback = interrupt_button_1, bouncetime = 100)
+    GPIO.add_event_detect( BEACON_INPUT_PIN, GPIO.RISING,
+      callback = interrupt_button_1, bouncetime = 100 )
 
     #step3 calculate search path
     sign=1
