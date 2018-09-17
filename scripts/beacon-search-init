@@ -30,7 +30,7 @@ case "$1" in
     killall python
     ;;
   *)
-    echo "Usage: /etc/init.d/bbm-follow {start|stop}"
+    echo "Usage: systemctl {start|stop} beacon-search.service"
     exit 1
     ;;
 esac

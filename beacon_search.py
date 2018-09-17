@@ -25,7 +25,6 @@ import sys
 import math
 import logging
 import geopy
-import geopy.distance
 import RPi.GPIO as GPIO
 from pymavlink import mavutil
 from yaml import load
