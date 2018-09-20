@@ -25,6 +25,7 @@ import sys
 import math
 import logging
 import geopy
+import geopy.distance as distance
 import RPi.GPIO as GPIO
 from pymavlink import mavutil
 from yaml import load
@@ -169,7 +170,7 @@ def main():
         break
       #go straight
       curr = vehicle.location.global_frame
-      d = geopy.distance.VincentyDistance(meters = params["MEANDER_DISTANCE"])
+      d = distance.VincentyDistance(meters = params["MEANDER_DISTANCE"])
       dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing)
       drone_dest = dronekit.LocationGlobalRelative(dest.latitude,
         dest.longitude, params["FLY_ALTITUDE"])
