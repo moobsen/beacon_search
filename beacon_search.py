@@ -153,16 +153,18 @@ def main():
       time.sleep(params["CON_TIMEOUT"])
 
     vehicle.groundspeed = params["FLY_SPEED"]
-    #step1 check direction the drone is facing
+
+    #STEP 1 check direction the drone is facing
     start = vehicle.location.global_frame
     bearing = vehicle.heading
-    #step2 arm and takeoff
+
+    #STEP 2 arm and takeoff
     arm_and_takeoff(params["START_ALTITUDE"], vehicle, params["WAIT_TIMEOUT"])
     #add the interupt event here
     GPIO.add_event_detect( BEACON_INPUT_PIN, GPIO.RISING,
       callback = interrupt_button_1, bouncetime = 40 )
 
-    #step3 calculate search path
+    #STEP 3 calculate search path
     sign=1
     for i in range(1,params["MEANDER_COUNT"]+1):
       if vehicle.mode.name != "GUIDED":
@@ -170,29 +172,27 @@ def main():
         break
       #go straight
       curr = vehicle.location.global_frame
-      d = distance.VincentyDistance(meters = params["MEANDER_DISTANCE"])
+      d = distance.VincentyDistance(meters = params["MEANDER_LENGTH"])
       dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing)
       drone_dest = dronekit.LocationGlobalRelative(dest.latitude,
         dest.longitude, params["FLY_ALTITUDE"])
       logging.info('Going to: %s' % drone_dest)
       #goto_position_target_global_int(drone_dest, vehicle)
       vehicle.simple_goto(drone_dest)
-      time.sleep(3)
+      time.sleep(2)
       while vehicle.groundspeed > 0.4:
         time.sleep(1)
       #go sideways
       curr = vehicle.location.global_frame
-      tan_y = math.tan(math.radians(params["SEARCH_ANGLE"]/2))
-      meander_d = params["MEANDER_DISTANCE"]
-      d = geopy.distance.VincentyDistance(
-        meters = 2*i*meander_d*tan_y - tan_y*meander_d )
+      meander_d = params["MEANDER_WIDTH"]
+      d = geopy.distance.VincentyDistance(meander_d)
       dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing+90*sign)
       drone_dest = dronekit.LocationGlobalRelative(dest.latitude, 
         dest.longitude, params["FLY_ALTITUDE"])
       logging.info('Going to: %s' % drone_dest)
       #goto_position_target_global_int(drone_dest, vehicle)
       vehicle.simple_goto(drone_dest)
-      time.sleep(3)
+      time.sleep(2)
       while vehicle.groundspeed > 0.5:
         time.sleep(1)
       sign=sign*-1
