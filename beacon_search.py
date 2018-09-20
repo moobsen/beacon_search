@@ -172,10 +172,11 @@ def main():
       curr = vehicle.location.global_frame
       d = geopy.distance.VincentyDistance(meters = params["MEANDER_DISTANCE"])
       dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing)
-      drone_dest = dronekit.LocationGlobal(dest.latitude,
+      drone_dest = dronekit.LocationGlobalRelative(dest.latitude,
         dest.longitude, params["FLY_ALTITUDE"])
       logging.info('Going to: %s' % drone_dest)
-      goto_position_target_global_int(drone_dest, vehicle)
+      #goto_position_target_global_int(drone_dest, vehicle)
+      vehicle.simple_goto(drone_dest)
       time.sleep(3)
       while vehicle.groundspeed > 0.4:
         time.sleep(1)
@@ -186,10 +187,11 @@ def main():
       d = geopy.distance.VincentyDistance(
         meters = 2*i*meander_d*tan_y - tan_y*meander_d )
       dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing+90*sign)
-      drone_dest = dronekit.LocationGlobal(dest.latitude, 
+      drone_dest = dronekit.LocationGlobalRelative(dest.latitude, 
         dest.longitude, params["FLY_ALTITUDE"])
       logging.info('Going to: %s' % drone_dest)
-      goto_position_target_global_int(drone_dest, vehicle)
+      #goto_position_target_global_int(drone_dest, vehicle)
+      vehicle.simple_goto(drone_dest)
       time.sleep(3)
       while vehicle.groundspeed > 0.5:
         time.sleep(1)
