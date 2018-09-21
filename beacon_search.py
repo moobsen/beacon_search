@@ -186,7 +186,7 @@ def main():
     logging.info('Going to: %s' % drone_dest)
     #goto_position_target_global_int(drone_dest, vehicle)
     vehicle.simple_goto(drone_dest)
-    time.sleep(2)
+    time.sleep(3)
     while vehicle.groundspeed > 0.4:
       time.sleep(0.5)
 
@@ -205,7 +205,7 @@ def main():
       logging.info('Going to: %s' % drone_dest)
       #goto_position_target_global_int(drone_dest, vehicle)
       vehicle.simple_goto(drone_dest)
-      time.sleep(2)
+      time.sleep(3)
       while vehicle.groundspeed > 0.4:
         time.sleep(0.5)
       #go sideways
@@ -217,7 +217,7 @@ def main():
       logging.info('Going to: %s' % drone_dest)
       #goto_position_target_global_int(drone_dest, vehicle)
       vehicle.simple_goto(drone_dest)
-      time.sleep(2)
+      time.sleep(3)
       while vehicle.groundspeed > 0.4:
         time.sleep(0.5)
       sign=sign*-1
