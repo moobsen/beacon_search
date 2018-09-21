@@ -164,7 +164,33 @@ def main():
     GPIO.add_event_detect( BEACON_INPUT_PIN, GPIO.RISING,
       callback = interrupt_button_1, bouncetime = 40 )
 
-    #STEP 3 calculate search path
+    #STEP 3 half meander once in the beginning
+    # go straight  
+    curr = vehicle.location.global_frame
+    d = distance.VincentyDistance(meters = params["MEANDER_LENGTH"])
+    dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing)
+    drone_dest = dronekit.LocationGlobalRelative(dest.latitude,
+        dest.longitude, params["FLY_ALTITUDE"])
+    logging.info('Going to: %s' % drone_dest)
+    #goto_position_target_global_int(drone_dest, vehicle)
+    vehicle.simple_goto(drone_dest)
+    time.sleep(2)
+    while vehicle.groundspeed > 0.4:
+      time.sleep(1)
+    #go sideways
+    curr = vehicle.location.global_frame
+    d = distance.VincentyDistance(meters = params["MEANDER_WIDTH"]/2)
+    dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing+90)
+    drone_dest = dronekit.LocationGlobalRelative(dest.latitude, 
+      dest.longitude, params["FLY_ALTITUDE"])
+    logging.info('Going to: %s' % drone_dest)
+    #goto_position_target_global_int(drone_dest, vehicle)
+    vehicle.simple_goto(drone_dest)
+    time.sleep(2)
+    while vehicle.groundspeed > 0.5:
+      time.sleep(1)
+
+    #STEP 4 calculate search path
     sign=-1
     for i in range(1,params["MEANDER_COUNT"]+1):
       if vehicle.mode.name != "GUIDED":
