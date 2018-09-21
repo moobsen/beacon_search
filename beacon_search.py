@@ -107,7 +107,7 @@ def arm_and_takeoff(aTargetAltitude, vehicle, timeout_wait):
       #Trigger just below target alt.
       logging.info("Reached target altitude")
       break
-    time.sleep(1)
+    time.sleep(0.5)
 
 
 def main():
@@ -174,9 +174,9 @@ def main():
     logging.info('Going to: %s' % drone_dest)
     #goto_position_target_global_int(drone_dest, vehicle)
     vehicle.simple_goto(drone_dest)
-    time.sleep(2)
+    time.sleep(3)
     while vehicle.groundspeed > 0.4:
-      time.sleep(1)
+      time.sleep(0.5)
     #go sideways
     curr = vehicle.location.global_frame
     d = distance.VincentyDistance(meters = params["MEANDER_WIDTH"]/2)
@@ -187,8 +187,8 @@ def main():
     #goto_position_target_global_int(drone_dest, vehicle)
     vehicle.simple_goto(drone_dest)
     time.sleep(2)
-    while vehicle.groundspeed > 0.5:
-      time.sleep(1)
+    while vehicle.groundspeed > 0.4:
+      time.sleep(0.5)
 
     #STEP 4 calculate search path
     sign=-1
@@ -207,7 +207,7 @@ def main():
       vehicle.simple_goto(drone_dest)
       time.sleep(2)
       while vehicle.groundspeed > 0.4:
-        time.sleep(1)
+        time.sleep(0.5)
       #go sideways
       curr = vehicle.location.global_frame
       d = distance.VincentyDistance(meters = params["MEANDER_WIDTH"])
@@ -218,8 +218,8 @@ def main():
       #goto_position_target_global_int(drone_dest, vehicle)
       vehicle.simple_goto(drone_dest)
       time.sleep(2)
-      while vehicle.groundspeed > 0.5:
-        time.sleep(1)
+      while vehicle.groundspeed > 0.4:
+        time.sleep(0.5)
       sign=sign*-1
       i=i+1
     logging.info('left search mode')
