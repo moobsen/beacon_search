@@ -165,7 +165,7 @@ def main():
       callback = interrupt_button_1, bouncetime = 40 )
 
     #STEP 3 calculate search path
-    sign=1
+    sign=-1
     for i in range(1,params["MEANDER_COUNT"]+1):
       if vehicle.mode.name != "GUIDED":
         logging.warning("Flight mode changed - aborting follow-me")
@@ -184,8 +184,7 @@ def main():
         time.sleep(1)
       #go sideways
       curr = vehicle.location.global_frame
-      meander_d = params["MEANDER_WIDTH"]
-      d = geopy.distance.VincentyDistance(meander_d)
+      d = distance.VincentyDistance(meters = params["MEANDER_WIDTH"])
       dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing+90*sign)
       drone_dest = dronekit.LocationGlobalRelative(dest.latitude, 
         dest.longitude, params["FLY_ALTITUDE"])
