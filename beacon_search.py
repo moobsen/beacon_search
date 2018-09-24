@@ -42,7 +42,7 @@ BEACON_INPUT_PIN = 17 #global GPIO PIN number (I know)
 
 def setup_buttons():
   GPIO.setmode(GPIO.BCM)
-  GPIO.setup(BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+  GPIO.setup(BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
 def goto_position_target_global_int(aLocation, vehicle):
     """
@@ -112,15 +112,15 @@ def arm_and_takeoff(aTargetAltitude, vehicle, timeout_wait):
 
 def main():
   def interrupt_button_1(channel):
-    if GPIO.input(BEACON_INPUT_PIN) == 0:
+    if GPIO.input(BEACON_INPUT_PIN) == 1:
       #beacon found
       millis = int(round(time.time() * 1000))
       hits = 0
-      for x in range(0, 39):
-        if GPIO.input(BEACON_INPUT_PIN) == 0:
+      for x in range(0, 1000):
+        if GPIO.input(BEACON_INPUT_PIN) == 1:
           hits = hits+1
-        time.sleep(0.001)
-      if hits > 35:
+        time.sleep(0.0001)
+      if hits > 930:
         logging.info( str(millis) + "  Signal detected, initiating Land Mode!" )
         vehicle.mode = dronekit.VehicleMode("LAND")
       #else:
@@ -161,7 +161,7 @@ def main():
     #STEP 2 arm and takeoff
     arm_and_takeoff(params["START_ALTITUDE"], vehicle, params["WAIT_TIMEOUT"])
     #add the interupt event here
-    GPIO.add_event_detect( BEACON_INPUT_PIN, GPIO.RISING,
+    GPIO.add_event_detect( BEACON_INPUT_PIN, GPIO.FALLING,
       callback = interrupt_button_1, bouncetime = 40 )
 
     #STEP 3 half meander once in the beginning
