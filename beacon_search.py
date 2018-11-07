@@ -26,23 +26,23 @@ import math
 import logging
 import geopy
 import geopy.distance as distance
-import RPi.GPIO as GPIO
+ 
 from pymavlink import mavutil
 from yaml import load
 
 #parameters now come from PARAMETERS.yaml
 
 def load_parameters():
-  stream = file('/home/pi/src/moobsen/beacon_search/PARAMETERS.yaml', 'r')
+  try:
+    stream = file('/home/pi/src/moobsen/beacon_search/PARAMETERS.yaml', 'r')
+  except:
+    import os
+    stream = file(os.getcwd()+'/PARAMETERS.yaml','r')
   params = load(stream)
   logging.info('Loaded parameters: %s' % params)
   return params
 
 BEACON_INPUT_PIN = 17 #global GPIO PIN number (I know)
-
-def setup_buttons():
-  GPIO.setmode(GPIO.BCM)
-  GPIO.setup(BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 def goto_position_target_global_int(aLocation, vehicle):
     """
@@ -119,28 +119,35 @@ def go_forward(vehicle, forward_distance, bearing, params):
   drone_dest = dronekit.LocationGlobalRelative(dest.latitude,
     dest.longitude, params["FLY_ALTITUDE"])
   logging.info('Going to: %s' % drone_dest)
-  vehicle.simple_goto(drone_dest)
+  #vehicle.simple_goto(drone_dest)
+  goto_position_target_global_int(drone_dest, vehicle)
   time.sleep(params["MEANDER_MIN_TIMEOUT"])
   while vehicle.groundspeed > params["MEANDER_MIN_SPEED"]:
     time.sleep(params["MEANDER_MIN_SPEED_TIMEOUT"])
 
 
 def main():
-  def interrupt_button_1(channel):
-    if GPIO.input(BEACON_INPUT_PIN) == 0:
-      #beacon found
-      millis = int(round(time.time() * 1000))
-      hits = 0
-      for x in range(0, 39):
-        if GPIO.input(BEACON_INPUT_PIN) == 0:
-          hits = hits+1
-        time.sleep(0.001)
-      if hits > 35:
-        logging.info( str(millis) + "  Signal detected, initiating Land Mode!" )
-        vehicle.mode = dronekit.VehicleMode("LAND")
-      #else:
-      #  print("noise detected")
-  setup_buttons()
+  try:
+    import RPi.GPIO as GPIO
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+    def interrupt_button_1(channel):
+      if GPIO.input(BEACON_INPUT_PIN) == 0:
+        #beacon found
+        millis = int(round(time.time() * 1000))
+        hits = 0
+        for x in range(0, 39):
+          if GPIO.input(BEACON_INPUT_PIN) == 0:
+            hits = hits+1
+          time.sleep(0.001)
+        if hits > 35:
+          logging.info( str(millis) + "  Signal detected, initiating Land Mode!" )
+          vehicle.mode = dronekit.VehicleMode("LAND")
+        #else:
+          print("noise detected")
+  except Exception as e:
+    print("Button Setup failed (no GPIO?)")
+    logging.error(e)
   try:
     parser = argparse.ArgumentParser(
       description='Searches for beacon')
@@ -176,19 +183,18 @@ def main():
     #STEP 2 arm and takeoff
     arm_and_takeoff(params["START_ALTITUDE"], vehicle, params["WAIT_TIMEOUT"])
     #add the interupt event here
-    GPIO.add_event_detect( BEACON_INPUT_PIN, GPIO.RISING,
-      callback = interrupt_button_1, bouncetime = 40 )
-
+    try:
+      GPIO.add_event_detect( BEACON_INPUT_PIN, GPIO.RISING,
+        callback = interrupt_button_1, bouncetime = 40 )
+    except:
+        print("Adding interrupt failed, drone will not auto land.")
+    
     #STEP 3 half meander once in the beginning
     # go straight  
     go_forward(vehicle, params["MEANDER_LENGTH"], bearing, params)
     #go sideways
-    for i in range (1, 11):
-      go_forward(vehicle, params["MEANDER_LENGTH"]/9, bearing+i*9, params)
-
-    go_forward(vehicle, params["MEANDER_WIDTH"]/3, bearing+90, params)
-
-    #STEP 4 calculate search path
+    go_forward(vehicle, params["MEANDER_WIDTH"]/2, bearing+85, params)
+    #STEP 4 calculate search path for normal meander
     sign=-1
     for i in range(1,params["MEANDER_COUNT"]+1):
       if vehicle.mode.name != "GUIDED":
