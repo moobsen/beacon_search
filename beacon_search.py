@@ -109,6 +109,21 @@ def arm_and_takeoff(aTargetAltitude, vehicle, timeout_wait):
       break
     time.sleep(0.5)
 
+def go_forward(vehicle, forward_distance, bearing, params):
+  """
+  /vehicle/ goes for /distance/ meters in the direction of /bearing/
+  """
+  curr = vehicle.location.global_frame
+  d = geopy.distance.VincentyDistance(meters = forward_distance)
+  dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing)
+  drone_dest = dronekit.LocationGlobalRelative(dest.latitude,
+    dest.longitude, params["FLY_ALTITUDE"])
+  logging.info('Going to: %s' % drone_dest)
+  vehicle.simple_goto(drone_dest)
+  time.sleep(params["MEANDER_MIN_TIMEOUT"])
+  while vehicle.groundspeed > params["MEANDER_MIN_SPEED"]:
+    time.sleep(params["MEANDER_MIN_SPEED_TIMEOUT"])
+
 
 def main():
   def interrupt_button_1(channel):
@@ -166,60 +181,23 @@ def main():
 
     #STEP 3 half meander once in the beginning
     # go straight  
-    curr = vehicle.location.global_frame
-    d = distance.VincentyDistance(meters = params["MEANDER_LENGTH"])
-    dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing)
-    drone_dest = dronekit.LocationGlobalRelative(dest.latitude,
-        dest.longitude, params["FLY_ALTITUDE"])
-    logging.info('Going to: %s' % drone_dest)
-    #goto_position_target_global_int(drone_dest, vehicle)
-    vehicle.simple_goto(drone_dest)
-    time.sleep(3)
-    while vehicle.groundspeed > 0.4:
-      time.sleep(0.5)
+    go_forward(vehicle, params["MEANDER_LENGTH"], bearing, params)
     #go sideways
-    curr = vehicle.location.global_frame
-    d = distance.VincentyDistance(meters = params["MEANDER_WIDTH"]/2)
-    dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing+90)
-    drone_dest = dronekit.LocationGlobalRelative(dest.latitude, 
-      dest.longitude, params["FLY_ALTITUDE"])
-    logging.info('Going to: %s' % drone_dest)
-    #goto_position_target_global_int(drone_dest, vehicle)
-    vehicle.simple_goto(drone_dest)
-    time.sleep(2)
-    while vehicle.groundspeed > 0.4:
-      time.sleep(0.5)
+    for i in range (1, 11):
+      go_forward(vehicle, params["MEANDER_LENGTH"]/9, bearing+i*9, params)
+
+    go_forward(vehicle, params["MEANDER_WIDTH"]/3, bearing+90, params)
 
     #STEP 4 calculate search path
     sign=-1
     for i in range(1,params["MEANDER_COUNT"]+1):
       if vehicle.mode.name != "GUIDED":
-        logging.warning("Flight mode changed - aborting follow-me")
+        logging.warning("Flight mode not Guided - aborting!")
         break
       #go straight
-      curr = vehicle.location.global_frame
-      d = distance.VincentyDistance(meters = params["MEANDER_LENGTH"])
-      dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing)
-      drone_dest = dronekit.LocationGlobalRelative(dest.latitude,
-        dest.longitude, params["FLY_ALTITUDE"])
-      logging.info('Going to: %s' % drone_dest)
-      #goto_position_target_global_int(drone_dest, vehicle)
-      vehicle.simple_goto(drone_dest)
-      time.sleep(2)
-      while vehicle.groundspeed > 0.4:
-        time.sleep(0.5)
+      go_forward(vehicle, params["MEANDER_LENGTH"], bearing, params)
       #go sideways
-      curr = vehicle.location.global_frame
-      d = distance.VincentyDistance(meters = params["MEANDER_WIDTH"])
-      dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing+90*sign)
-      drone_dest = dronekit.LocationGlobalRelative(dest.latitude, 
-        dest.longitude, params["FLY_ALTITUDE"])
-      logging.info('Going to: %s' % drone_dest)
-      #goto_position_target_global_int(drone_dest, vehicle)
-      vehicle.simple_goto(drone_dest)
-      time.sleep(2)
-      while vehicle.groundspeed > 0.4:
-        time.sleep(0.5)
+      go_forward(vehicle, params["MEANDER_WIDTH"], bearing+85*sign, params)
       sign=sign*-1
       i=i+1
     logging.info('left search mode')
