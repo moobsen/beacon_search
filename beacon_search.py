@@ -46,7 +46,7 @@ BEACON_INPUT_PIN = 17 #global GPIO PIN number (I know)
 
 def setup_buttons():
   GPIO.setmode(GPIO.BCM)
-  GPIO.setup(BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+  GPIO.setup(BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
 def goto_position_target_global_int(aLocation, vehicle):
     """
@@ -111,7 +111,7 @@ def arm_and_takeoff(aTargetAltitude, vehicle, timeout_wait):
       #Trigger just below target alt.
       logging.info("Reached target altitude")
       break
-    time.sleep(1)
+    time.sleep(0.5)
 
 
 def main():
@@ -174,9 +174,35 @@ def main():
         callback = interrupt_button_1, bouncetime = 40 )
     except:
         print("Adding interrupt failed, drone will not auto land.")
+    
+    #STEP 3 half meander once in the beginning
+    # go straight  
+    curr = vehicle.location.global_frame
+    d = distance.VincentyDistance(meters = params["MEANDER_LENGTH"])
+    dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing)
+    drone_dest = dronekit.LocationGlobalRelative(dest.latitude,
+        dest.longitude, params["FLY_ALTITUDE"])
+    logging.info('Going to: %s' % drone_dest)
+    #goto_position_target_global_int(drone_dest, vehicle)
+    vehicle.simple_goto(drone_dest)
+    time.sleep(3)
+    while vehicle.groundspeed > 0.4:
+      time.sleep(0.5)
+    #go sideways
+    curr = vehicle.location.global_frame
+    d = distance.VincentyDistance(meters = params["MEANDER_WIDTH"]/2)
+    dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing+90)
+    drone_dest = dronekit.LocationGlobalRelative(dest.latitude, 
+      dest.longitude, params["FLY_ALTITUDE"])
+    logging.info('Going to: %s' % drone_dest)
+    #goto_position_target_global_int(drone_dest, vehicle)
+    vehicle.simple_goto(drone_dest)
+    time.sleep(3)
+    while vehicle.groundspeed > 0.4:
+      time.sleep(0.5)
 
-    #STEP 3 calculate search path
-    sign=1
+    #STEP 4 calculate search path
+    sign=-1
     for i in range(1,params["MEANDER_COUNT"]+1):
       if vehicle.mode.name != "GUIDED":
         logging.warning("Flight mode changed - aborting follow-me")
@@ -192,20 +218,19 @@ def main():
       #vehicle.simple_goto(drone_dest)
       time.sleep(2)
       while vehicle.groundspeed > 0.4:
-        time.sleep(1)
+        time.sleep(0.5)
       #go sideways
       curr = vehicle.location.global_frame
-      meander_d = params["MEANDER_WIDTH"]
-      d = geopy.distance.VincentyDistance(meander_d)
+      d = distance.VincentyDistance(meters = params["MEANDER_WIDTH"])
       dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing+90*sign)
       drone_dest = dronekit.LocationGlobalRelative(dest.latitude, 
         dest.longitude, params["FLY_ALTITUDE"])
       logging.info('Going to: %s' % drone_dest)
-      #goto_position_target_global_int(drone_dest, vehicle)
-      vehicle.simple_goto(drone_dest)
-      time.sleep(2)
-      while vehicle.groundspeed > 0.5:
-        time.sleep(1)
+      goto_position_target_global_int(drone_dest, vehicle)
+      #vehicle.simple_goto(drone_dest)
+      time.sleep(3)
+      while vehicle.groundspeed > 0.4:
+        time.sleep(0.5)
       sign=sign*-1
       i=i+1
     logging.info('left search mode')

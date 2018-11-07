@@ -23,19 +23,19 @@ BEACON_INPUT_PIN = 17 #global GPIO PIN number (I know)
 
 def setup_buttons():
   GPIO.setmode(GPIO.BCM)
-  GPIO.setup(BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+  GPIO.setup(BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
 def main():
   def interrupt_button_1(channel):
-    if GPIO.input(BEACON_INPUT_PIN) == 0:
+    if GPIO.input(BEACON_INPUT_PIN) == 1:
       #beacon found
       millis = int(round(time.time() * 1000))
       hits = 0
-      for x in range(0, 39):
-        if GPIO.input(BEACON_INPUT_PIN) == 0:
+      for x in range(0, 1000):
+        if GPIO.input(BEACON_INPUT_PIN) == 1:
           hits = hits+1
-        time.sleep(0.001)
-      if hits > 35:
+        time.sleep(0.0001)
+      if hits > 930:
         print(str(millis) + "  Signal detected!")
       else:
         print(str(millis) + " ignored")
