@@ -159,8 +159,8 @@ def main():
     if args.connect:
       connection_string = args.connect
     else:
-      print("no connection specified via --connect, exiting")
-      sys.exit()
+      print("No connection specified via --connect, trying 127.0.0.1:14551")
+      connection_string = "127.0.0.1:14551"
     if args.log:
       logging.basicConfig(filename='search.log', level=args.log.upper())
     else:
