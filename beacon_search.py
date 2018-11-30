@@ -46,10 +46,7 @@ BEACON_INPUT_PIN = 17 #global GPIO PIN number (I know)
 
 def goto_position_target_global_int(aLocation, vehicle):
     """
-    Send SET_POSITION_TARGET_GLOBAL_INT command to request the vehicle fly to a specified location.
-
-    See the above link for information on the type_mask (0=enable, 1=ignore). 
-    At time of writing, acceleration and yaw bits are ignored.
+    Send SET_POSITION_TARGET_GLOBAL_INT command to request the vehicle fly to a location.
     """
     msg = vehicle.message_factory.set_position_target_global_int_encode(
         0,       # time_boot_ms (not used)
@@ -136,6 +133,7 @@ def main():
         #beacon found
         millis = int(round(time.time() * 1000))
         hits = 0
+	#filter signal
         for x in range(0, 39):
           if GPIO.input(BEACON_INPUT_PIN) == 0:
             hits = hits+1
@@ -143,12 +141,13 @@ def main():
         if hits > 35:
           logging.info( str(millis) + "  Signal detected, initiating Land Mode!" )
           vehicle.mode = dronekit.VehicleMode("LAND")
-        #else:
+        else:
           print("noise detected")
   except Exception as e:
     print("Button Setup failed (no GPIO?)")
     logging.error(e)
   try:
+    #Argument Parsing
     parser = argparse.ArgumentParser(
       description='Searches for beacon')
     parser.add_argument('--connect', 
@@ -166,6 +165,7 @@ def main():
     else:
       print('No loging level specified, using WARNING')
       logging.basicConfig(filename='search.log', level='WARNING')
+    #further init
     logging.info('################## Starting script log ##################')
     logging.info("System Time:" + time.strftime("%c"))
     params = load_parameters()
@@ -194,6 +194,7 @@ def main():
     go_forward(vehicle, params["MEANDER_LENGTH"], bearing, params)
     #go sideways
     go_forward(vehicle, params["MEANDER_WIDTH"]/2, bearing+85, params)
+
     #STEP 4 calculate search path for normal meander
     sign=-1
     for i in range(1,params["MEANDER_COUNT"]+1):
