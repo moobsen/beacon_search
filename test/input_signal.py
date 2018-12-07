@@ -26,25 +26,26 @@ def setup_buttons():
   GPIO.setup(BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
 def main():
+  start_time_ms = int(round(time.time() * 1000))
   def interrupt_button_1(channel):
-    if GPIO.input(BEACON_INPUT_PIN) == 1:
+    if GPIO.input(BEACON_INPUT_PIN) == 0:
       #beacon found
-      millis = int(round(time.time() * 1000))
+      now_ms = int(round(time.time() * 1000))
       hits = 0
-      for x in range(0, 1000):
-        if GPIO.input(BEACON_INPUT_PIN) == 1:
+      for x in range(0, 200):
+        if GPIO.input(BEACON_INPUT_PIN) == 0:
           hits = hits+1
-        time.sleep(0.0001)
-      if hits > 930:
-        print(str(millis) + "  Signal detected!")
+        time.sleep(0.0005)
+      if hits > 101:
+        print(str(now_ms-start_time_ms) + "ms; hits: " + str(hits) + " Signal detected!")
       else:
-        print(str(millis) + " ignored")
+        print(str(now_ms-start_time_ms) + "ms; hits: " + str(hits) + " ignored")
       #vehicle.mode = dronekit.VehicleMode("LAND")
   setup_buttons()
   try:
     print("Starting Signal detector")
     #add the interupt event here
-    GPIO.add_event_detect(BEACON_INPUT_PIN, GPIO.FALLING,
+    GPIO.add_event_detect(BEACON_INPUT_PIN, GPIO.RISING,
       callback = interrupt_button_1, bouncetime = 40)
     while True:
       time.sleep(1)

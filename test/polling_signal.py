@@ -24,24 +24,37 @@ BEACON_INPUT_PIN = 17 #global GPIO PIN number (I know)
 
 def setup_buttons():
   GPIO.setmode(GPIO.BCM)
-  GPIO.setup(BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+  GPIO.setup(BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
 def main():
   setup_buttons()
   try:
     print("Starting Signal detector")
+    start_time_ms = int(round(time.time() * 1000))
     f = open('plot.dat', 'w')
     f.seek(0)
+    hits=0
     i = 0
     while True:
-      time.sleep(0.001)
+      time.sleep(0.0005)
       i=i+1
-      if GPIO.input(BEACON_INPUT_PIN) == 0:
-        #sys.stdout.write('1')
-        f.write(str(i) +' 1\n')
-      else:
-        #sys.stdout.write('0') 
+      if GPIO.input(BEACON_INPUT_PIN) == 1:
+      # NO signal
         f.write(str(i) +' 0\n')
+        if hits > 0:
+          hits = hits-1
+      else:
+      # SIGNAL
+        f.write(str(i) +' 1\n')
+        hits = hits+1
+      now_ms = int(round(time.time() * 1000))
+      #if hits == 10:
+      #  print(str(now_ms-start_time_ms) + ' ms hits is 10')
+      #if hits == 20:
+      #  print(str(now_ms-start_time_ms) + ' ms hits is 20')
+      if hits > 11:
+        print(str(now_ms-start_time_ms) + 'ms; Signal Detected')
+        hits = 0
       sys.stdout.flush()
       if i > 10000:
         i=0

@@ -71,9 +71,9 @@ def connect(connection_string):
     # connect to the vehicle
     logging.info('Connecting to vehicle on: %s' % connection_string)
     vehicle = dronekit.connect(connection_string, wait_ready=False)
-    cmds = vehicle.commands
-    cmds.download()
-    cmds.wait_ready()
+    #cmds = vehicle.commands
+    #cmds.download()
+    #cmds.wait_ready()
     return vehicle
   except Exception as e:
     logging.error("Exception caught. Most likely connection to vehicle failed.")
@@ -130,6 +130,7 @@ def main():
         if hits > 35:
           logging.info( str(millis) + "  Signal detected, initiating Land Mode!" )
           vehicle.mode = dronekit.VehicleMode("LAND")
+          sys.exit(2) 
         else:
           print("noise detected")
   except Exception as e:
@@ -152,8 +153,8 @@ def main():
     if args.log:
       logging.basicConfig(filename='test_fly.log', level=args.log.upper())
     else:
-      print('No loging level specified, using WARNING')
-      logging.basicConfig(filename='test_fly.log', level='WARNING')
+      print('No loging level specified, using DEBUG')
+      logging.basicConfig(filename='test_fly.log', level='DEBUG')
     #further init
     logging.info('################## Starting TEST log ##################')
     logging.info("System Time:" + time.strftime("%c"))
@@ -161,10 +162,10 @@ def main():
     vehicle = 'None'
     while vehicle == 'None':
       vehicle = connect(connection_string)
-      time.sleep(params["CON_TIMEOUT"])
     vehicle.groundspeed = params["FLY_SPEED"]
 
     #STEP1 arm and takeoff
+    logging.info('taking off')
     arm_and_takeoff(params["START_ALTITUDE"], vehicle, params["WAIT_TIMEOUT"])
     # start beacon detection
     try:
