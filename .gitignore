@@ -1,2 +1,3 @@
-beacon_search.pyc
+*.pyc
+*.swp
 search.log
