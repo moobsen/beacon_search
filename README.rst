@@ -1,0 +1,1 @@
+The goal of this script is to locate an avalanche beacon signal by controlling a drone. This python tool is to be run a companion computer controlling a Arduoilot Drone. The companion computer needs an avalanche beacon receiver attached to it. 

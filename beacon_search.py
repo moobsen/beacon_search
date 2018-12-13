@@ -32,188 +32,203 @@ from yaml import load
 
 #parameters now come from PARAMETERS.yaml
 
-def load_parameters():
-  try:
-    stream = file('/home/pi/src/moobsen/beacon_search/PARAMETERS.yaml', 'r')
-  except:
-    import os
-    stream = file(os.getcwd()+'/PARAMETERS.yaml','r')
-  params = load(stream)
-  logging.info('Loaded parameters: %s' % params)
-  return params
 
-BEACON_INPUT_PIN = 17 #global GPIO PIN number (I know)
+class SearchController:
+  BEACON_INPUT_PIN = 17 #global GPIO PIN number (I know)
+  vehicle = 'None'
+  connection_string = 'None'
+  params = []
+  
+  def start_logging(self):
+    #start log entry
+    logging.info('################## Starting script log ##################')
+    logging.info("System Time:" + time.strftime("%c"))
 
-def goto_position_target_global_int(aLocation, vehicle):
+  def load_parameters(self):
+    try:
+      stream = file('/home/pi/src/moobsen/beacon_search/PARAMETERS.yaml', 'r')
+    except:
+      import os
+      stream = file(os.getcwd()+'/PARAMETERS.yaml','r')
+    self.params = load(stream)
+    logging.info('Loaded parameters: %s' % self.params)
+    return self.params
+
+  def goto_position_target_global_int(self, aLocation):
     """
     Send SET_POSITION_TARGET_GLOBAL_INT command to request the vehicle fly to a location.
     """
-    msg = vehicle.message_factory.set_position_target_global_int_encode(
-        0,       # time_boot_ms (not used)
-        0, 0,    # target system, target component
-        mavutil.mavlink.MAV_FRAME_GLOBAL_TERRAIN_ALT_INT, # frame      
-        0b0000111111111000, # type_mask (only speeds enabled)
-        aLocation.lat*1e7, # lat_int - X Position in WGS84 frame in 1e7 * meters
-        aLocation.lon*1e7, # lon_int - Y Position in WGS84 frame in 1e7 * meters
-        aLocation.alt, # alt - Altitude in meters in AMSL altitude, not WGS84 if absolute or relative, above terrain if GLOBAL_TERRAIN_ALT_INT
-        0, # X velocity in NED frame in m/s
-        0, # Y velocity in NED frame in m/s
-        0, # Z velocity in NED frame in m/s
-        0, 0, 0, # afx, afy, afz acceleration (not supported yet, ignored in GCS_Mavlink)
-        0, 0)    # yaw, yaw_rate (not supported yet, ignored in GCS_Mavlink) 
+    msg = self.vehicle.message_factory.set_position_target_global_int_encode(
+      0,       # time_boot_ms (not used)
+      0, 0,    # target system, target component
+      mavutil.mavlink.MAV_FRAME_GLOBAL_TERRAIN_ALT_INT, # frame      
+      0b0000111111111000, # type_mask (only speeds enabled)
+      aLocation.lat*1e7, # lat_int - X Position in WGS84 frame in 1e7 * meters
+      aLocation.lon*1e7, # lon_int - Y Position in WGS84 frame in 1e7 * meters
+      aLocation.alt, # alt - Altitude in m, interpretation depends on GLOBAL_TERRAIN_ALT_INT
+      0, # X velocity in NED frame in m/s
+      0, # Y velocity in NED frame in m/s
+      0, # Z velocity in NED frame in m/s
+      0, 0, 0, # afx, afy, afz acceleration (not supported yet, ignored in GCS_Mavlink)
+      0, 0)    # yaw, yaw_rate (not supported yet, ignored in GCS_Mavlink) 
     # send command to vehicle
-    vehicle.send_mavlink(msg)
-    vehicle.flush()
+    self.vehicle.send_mavlink(msg)
+    self.vehicle.flush()
 
-def connect(connection_string):
-  try:
-    # connect to the vehicle
-    logging.info('Connecting to vehicle on: %s' % connection_string)
-    vehicle = dronekit.connect(connection_string, wait_ready=False)
-    cmds = vehicle.commands
-    cmds.download()
-    cmds.wait_ready()
-    return vehicle
-  except Exception as e:
-    logging.error("Exception caught. Most likely connection to vehicle failed.")
-    logging.error(traceback.format_exc())
-    return 'None'
+  def connect(self):
+    try:
+      # connect to the vehicle
+      logging.info('Connecting to vehicle on: %s' % self.connection_string)
+      print self.connection_string
+      self.vehicle = dronekit.connect(self.connection_string, wait_ready=False)
+    except Exception as e:
+      logging.error("Exception caught. Most likely connection to vehicle failed.")
+      logging.error(traceback.format_exc())
+      self.vehicle = 'None'
 
-def arm_and_takeoff(aTargetAltitude, vehicle, timeout_wait):
-  """
-  Arms vehicle and fly to aTargetAltitude.
-  """
-  logging.info("Basic pre-arm checks")
-  # don't let the user try to arm until autopilot is ready
-  while not vehicle.is_armable:
-    logging.info(" Waiting for vehicle to initialise...")
-    time.sleep(timeout_wait)
-  logging.info("Arming motors")
-  # Copter should arm in GUIDED mode
-  vehicle.mode = dronekit.VehicleMode("GUIDED")
-  vehicle.armed = True  
-  #while not vehicle.armed:    
-  #  logging.info(" Waiting for arming...")
-  #  time.sleep(1)
-  logging.info("Taking off!")
-  vehicle.simple_takeoff(aTargetAltitude)
-  # check if height is safe before going anywhere
-  while True:
-    logging.info(" Altitude: %s"%vehicle.rangefinder.distance)
-    if vehicle.rangefinder.distance>=aTargetAltitude*0.8: 
-      #Trigger just below target alt.
-      logging.info("Reached target altitude")
-      break
-    time.sleep(0.5)
+  def arm_and_takeoff(self):
+    """
+    Arms vehicle and fly to aTargetAltitude.
+    """
+    logging.info("Basic pre-arm checks")
+    # don't let the user try to arm until autopilot is ready
+    while not self.vehicle.is_armable:
+      logging.info(" Waiting for vehicle to initialise...")
+      time.sleep(timeout_wait)
+    logging.info("Arming motors")
+    # Copter should arm in GUIDED mode
+    self.vehicle.mode = dronekit.VehicleMode("GUIDED")
+    self.vehicle.armed = True  
+    logging.info("Taking off!")
+    self.vehicle.simple_takeoff(self.params["TAKEOFF_ALTITUDE"])
+    # check if height is safe before going anywhere
+    while True:
+      logging.info(" rangefinder.distance: %s"%self.vehicle.rangefinder.distance)
+      current_altitude = self.vehicle.location.global_relative_frame.alt 
+      if current_altitude >= self.params["TAKEOFF_ALTITUDE"]*0.95: 
+        #Trigger just below target alt.
+        logging.info("Reached target altitude")
+        break
+      time.sleep(0.5)
 
-def go_forward(vehicle, forward_distance, bearing, params):
-  """
-  /vehicle/ goes for /distance/ meters in the direction of /bearing/
-  """
-  curr = vehicle.location.global_frame
-  d = geopy.distance.VincentyDistance(meters = forward_distance)
-  dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing)
-  drone_dest = dronekit.LocationGlobalRelative(dest.latitude,
-    dest.longitude, params["FLY_ALTITUDE"])
-  logging.info('Going to: %s' % drone_dest)
-  #vehicle.simple_goto(drone_dest)
-  goto_position_target_global_int(drone_dest, vehicle)
-  time.sleep(params["MEANDER_MIN_TIMEOUT"])
-  while vehicle.groundspeed > params["MEANDER_MIN_SPEED"]:
-    time.sleep(params["MEANDER_MIN_SPEED_TIMEOUT"])
+  def go_forward(self, forward_distance, bearing):
+    """
+    /vehicle/ goes for /distance/ meters in the direction of /bearing/
+    """
+    curr = self.vehicle.location.global_frame
+    d = geopy.distance.VincentyDistance(meters = forward_distance)
+    dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing)
+    drone_dest = dronekit.LocationGlobalRelative(dest.latitude,
+      dest.longitude, self.params["FLY_ALTITUDE"])
+    logging.info('Going to: %s' % drone_dest)
+    #vehicle.simple_goto(drone_dest)
+    self.goto_position_target_global_int(drone_dest)
+    time.sleep(self.params["MEANDER_MIN_TIMEOUT"])
+    while self.vehicle.groundspeed > self.params["MEANDER_MIN_SPEED"]:
+      time.sleep(self.params["MEANDER_MIN_SPEED_TIMEOUT"])
 
-
-def main():
-  try:
-    import RPi.GPIO as GPIO
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-    def interrupt_button_1(channel):
-      if GPIO.input(BEACON_INPUT_PIN) == 0:
-        #beacon found
-        millis = int(round(time.time() * 1000))
-        hits = 0
-	#filter signal
-        for x in range(0, 39):
-          if GPIO.input(BEACON_INPUT_PIN) == 0:
-            hits = hits+1
+  def interrupt_function(self, channel):
+    if GPIO.input(BEACON_INPUT_PIN) == 0:
+      #beacon found
+      millis = int(round(time.time() * 1000))
+      hits = 0
+      #filter signal
+      for x in range(0, 39):
+        if GPIO.input(BEACON_INPUT_PIN) == 0:
+          hits = hits+1
           time.sleep(0.001)
         if hits > 35:
           logging.info( str(millis) + "  Signal detected, initiating Land Mode!" )
-          vehicle.mode = dronekit.VehicleMode("LAND")
-        else:
-          print("noise detected")
-  except Exception as e:
-    print("Button Setup failed (no GPIO?)")
-    logging.error(e)
-  try:
-    #Argument Parsing
-    parser = argparse.ArgumentParser(
-      description='Searches for beacon')
-    parser.add_argument('--connect', 
-              help="vehicle connection target string.")
-    parser.add_argument('--log',
-              help="logging level")
-    args = parser.parse_args()
-    if args.connect:
-      connection_string = args.connect
+          self.vehicle.mode = dronekit.VehicleMode("LAND")
     else:
-      print("No connection specified via --connect, trying 127.0.0.1:14551")
-      connection_string = "127.0.0.1:14551"
-    if args.log:
-      logging.basicConfig(filename='search.log', level=args.log.upper())
-    else:
-      print('No loging level specified, using WARNING')
-      logging.basicConfig(filename='search.log', level='WARNING')
-    #further init
-    logging.info('################## Starting script log ##################')
-    logging.info("System Time:" + time.strftime("%c"))
-    params = load_parameters()
-    vehicle = 'None'
-    while vehicle == 'None':
-      vehicle = connect(connection_string)
-      time.sleep(params["CON_TIMEOUT"])
+      print("noise detected")
 
-    vehicle.groundspeed = params["FLY_SPEED"]
-
-    #STEP 1 check direction the drone is facing
-    start = vehicle.location.global_frame
-    bearing = vehicle.heading
-
-    #STEP 2 arm and takeoff
-    arm_and_takeoff(params["START_ALTITUDE"], vehicle, params["WAIT_TIMEOUT"])
-    #add the interupt event here
+  def __init__(self, connection_string):
+    self.start_logging()
+    self.connection_string = connection_string
+    #setup LVS receiver connection
     try:
-      GPIO.add_event_detect( BEACON_INPUT_PIN, GPIO.RISING,
-        callback = interrupt_button_1, bouncetime = 40 )
-    except:
+      import RPi.GPIO as GPIO
+      GPIO.setmode(GPIO.BCM)
+      GPIO.setup(BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+    except Exception as e:
+      print("Button Setup failed (no GPIO?)")
+      logging.error(e)
+    #setup drone connection
+    try:
+      params = self.load_parameters()
+      drone = self.vehicle
+      while drone == 'None':
+        drone = self.connect()
+        time.sleep(self.params["CON_TIMEOUT"])
+      self.vehicle.groundspeed = self.params["FLY_SPEED"]
+      #add the interupt event here
+      try:
+        GPIO.add_event_detect( BEACON_INPUT_PIN, GPIO.RISING,
+          callback = self.interrupt_function, bouncetime = 40 )
+      except:
         print("Adding interrupt failed, drone will not auto land.")
-    
-    #STEP 3 half meander once in the beginning
-    # go straight  
-    go_forward(vehicle, params["MEANDER_LENGTH"], bearing, params)
-    #go sideways
-    go_forward(vehicle, params["MEANDER_WIDTH"]/2, bearing+85, params)
+    except Exception as e:
+      logging.error("Caught exeption")
+      logging.error(traceback.format_exc())
 
-    #STEP 4 calculate search path for normal meander
-    sign=-1
-    for i in range(1,params["MEANDER_COUNT"]+1):
-      if vehicle.mode.name != "GUIDED":
-        logging.warning("Flight mode not Guided - aborting!")
-        break
-      #go straight
-      go_forward(vehicle, params["MEANDER_LENGTH"], bearing, params)
+  def search_beacon(self):
+    if self.vehicle == 'None':
+      logging.error("No connection to vehicle.")
+      sys.exit()
+    try:
+      #STEP 1: check direction the drone is facing
+      start = self.vehicle.location.global_frame
+      bearing = self.vehicle.heading
+
+      #STEP 2: takeoff
+      self.arm_and_takeoff()
+      
+      #STEP 3: half meander once in the beginning
+      # go straight  
+      self.go_forward(self.params["MEANDER_LENGTH"], bearing)
       #go sideways
-      go_forward(vehicle, params["MEANDER_WIDTH"], bearing+85*sign, params)
-      sign=sign*-1
-      i=i+1
-    logging.info('left search mode')
-    vehicle.mode = dronekit.VehicleMode('LAND')
-  except Exception as e:
-    logging.error("Caught exeption")
-    logging.error(traceback.format_exc())
-    sys.exit(1)
+      self.go_forward(self.params["MEANDER_WIDTH"]/2, bearing+85)
 
+      #STEP 4 calculate search path for normal meander
+      sign=-1
+      for i in range(1,self.params["MEANDER_COUNT"]):
+        if self.vehicle.mode.name != "GUIDED":
+          logging.warning("Flight mode not Guided - aborting!")
+          break
+        #go straight
+        self.go_forward(self.params["MEANDER_LENGTH"], bearing)
+        #go sideways
+        self.go_forward(self.params["MEANDER_WIDTH"], bearing+85*sign)
+        sign=sign*-1
+        logging.info('left search mode')
+
+      #STEP 5: land
+      self.vehicle.mode = dronekit.VehicleMode('LAND')
+    except Exception as e:
+      logging.error("Caught exeption")
+      logging.error(traceback.format_exc())
+      sys.exit(1)
+
+def main():
+  #Argument Parsing
+  parser = argparse.ArgumentParser(description='Find avalanche beacon with drone')
+  parser.add_argument('--connect', help="vehicle connection target string.")
+  parser.add_argument('--log', help="logging level")
+  args = parser.parse_args()
+  if args.connect:
+    connection_string = args.connect
+  else:
+    print("No connection specified via --connect, trying 127.0.0.1:14551")
+    connection_string = "127.0.0.1:14551"
+  if args.log:
+    logging.basicConfig(filename='search.log', level=args.log.upper())
+  else:
+    print('No loging level specified, using DEBUG')
+    logging.basicConfig(filename='search.log', level='DEBUG')
+  sc = SearchController(connection_string)
+  sc.search_beacon()
+  
 if __name__ == "__main__":
   main()
 
