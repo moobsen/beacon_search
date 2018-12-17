@@ -34,12 +34,13 @@ from yaml import load
 
 
 class SearchController:
-  BEACON_INPUT_PIN = 17 #global GPIO PIN number (I know)
+  BEACON_INPUT_PIN = 17 #GPIO PIN number in Raspberry BCM Mode
   vehicle = 'None'
   connection_string = 'None'
+  start_time_ms = 0
   params = []
   
-  def start_logging(self):
+  def start_log(self):
     #start log entry
     logging.info('################## Starting script log ##################')
     logging.info("System Time:" + time.strftime("%c"))
@@ -54,7 +55,7 @@ class SearchController:
     logging.info('Loaded parameters: %s' % self.params)
     return self.params
 
-  def goto_position_target_global_int(self, aLocation):
+  def goto_position_above_terrain(self, aLocation):
     """
     Send SET_POSITION_TARGET_GLOBAL_INT command to request the vehicle fly to a location.
     """
@@ -74,6 +75,11 @@ class SearchController:
     # send command to vehicle
     self.vehicle.send_mavlink(msg)
     self.vehicle.flush()
+
+  def wait_until_there(self):
+    time.sleep(self.params["MEANDER_MIN_TIMEOUT"])
+    while self.vehicle.groundspeed > self.params["MEANDER_MIN_SPEED"]:
+      time.sleep(self.params["MEANDER_MIN_SPEED_TIMEOUT"])
 
   def connect(self):
     try:
@@ -105,7 +111,7 @@ class SearchController:
     while True:
       logging.info(" rangefinder.distance: %s"%self.vehicle.rangefinder.distance)
       current_altitude = self.vehicle.location.global_relative_frame.alt 
-      if current_altitude >= self.params["TAKEOFF_ALTITUDE"]*0.95: 
+      if current_altitude >= self.params["TAKEOFF_ALTITUDE"]*0.9: 
         #Trigger just below target alt.
         logging.info("Reached target altitude")
         break
@@ -121,8 +127,7 @@ class SearchController:
     drone_dest = dronekit.LocationGlobalRelative(dest.latitude,
       dest.longitude, self.params["FLY_ALTITUDE"])
     logging.info('Going to: %s' % drone_dest)
-    #vehicle.simple_goto(drone_dest)
-    self.goto_position_target_global_int(drone_dest)
+    self.goto_position_above_terrain(drone_dest)
     time.sleep(self.params["MEANDER_MIN_TIMEOUT"])
     while self.vehicle.groundspeed > self.params["MEANDER_MIN_SPEED"]:
       time.sleep(self.params["MEANDER_MIN_SPEED_TIMEOUT"])
@@ -130,29 +135,29 @@ class SearchController:
   def interrupt_function(self, channel):
     if GPIO.input(BEACON_INPUT_PIN) == 0:
       #beacon found
-      millis = int(round(time.time() * 1000))
+      now_ms = int(round(time.time() * 1000))
       hits = 0
-      #filter signal
-      for x in range(0, 39):
+      for x in range(0, 200):
         if GPIO.input(BEACON_INPUT_PIN) == 0:
           hits = hits+1
-          time.sleep(0.001)
-        if hits > 35:
-          logging.info( str(millis) + "  Signal detected, initiating Land Mode!" )
-          self.vehicle.mode = dronekit.VehicleMode("LAND")
-    else:
-      print("noise detected")
+        time.sleep(0.0005)
+      if hits > 101:
+        logging.info(str(now_ms-start_time_ms)+"ms; hits: "+str(hits)+" Signal detected!")
+        logging.info('Landing Drone!')
+        vehicle.mode = dronekit.VehicleMode("LAND")
+      else:
+        print(str(now_ms-start_time_ms) + "ms; hits: " + str(hits) + " ignored")
 
   def __init__(self, connection_string):
-    self.start_logging()
+    start_time_ms = int(round(time.time() * 1000))
+    self.start_log()
     self.connection_string = connection_string
-    #setup LVS receiver connection
-    try:
+    try:  #setup LVS receiver connection
       import RPi.GPIO as GPIO
       GPIO.setmode(GPIO.BCM)
       GPIO.setup(BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
     except Exception as e:
-      print("Button Setup failed (no GPIO?)")
+      print("LVS Setup failed (no GPIO?)")
       logging.error(e)
     #setup drone connection
     try:
@@ -167,7 +172,7 @@ class SearchController:
         GPIO.add_event_detect( BEACON_INPUT_PIN, GPIO.RISING,
           callback = self.interrupt_function, bouncetime = 40 )
       except:
-        print("Adding interrupt failed, drone will not auto land.")
+        logging.error("No LVS is set up, drone will not auto land.")
     except Exception as e:
       logging.error("Caught exeption")
       logging.error(traceback.format_exc())
