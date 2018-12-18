@@ -25,9 +25,9 @@ import beacon_search
 
 def main():
   try:
+    logging.basicConfig(filename='test_by_fly.log', level='DEBUG')
     sc=beacon_search.SearchController('127.0.0.1:14551')
     sc.start_log
-    logging.basicConfig(filename='test_by_fly.log', level='DEBUG')
     sc.arm_and_takeoff()
     
     #STEP1 go to start
