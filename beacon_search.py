@@ -132,6 +132,27 @@ class SearchController:
     while self.vehicle.groundspeed > self.params["MEANDER_MIN_SPEED"]:
       time.sleep(self.params["MEANDER_MIN_SPEED_TIMEOUT"])
 
+  def polling_function(self):
+    #TODO propper threading, this is not fully useable yet
+    try:
+      start_time_ms = int(round(time.time() * 1000))
+      signal=0
+      while True:
+        time.sleep(0.0005)
+        if GPIO.input(BEACON_INPUT_PIN) == 1:
+          if signal > 0:
+            signal = signal-1
+          else:
+            signal = signal+1
+        now_ms = int(round(time.time() * 1000))
+        if signal > 21:
+          print(str(now_ms-start_time_ms) + 'ms; Signal Detected')
+          signal = 0
+    except Exception as e:
+      logging.error(e)
+      logging.error(traceback.format_exc())
+
+
   def interrupt_function(self, channel):
     if GPIO.input(BEACON_INPUT_PIN) == 0:
       #beacon found
