@@ -135,18 +135,18 @@ class SearchController:
   def polling_function(self):
     #TODO propper threading, this is not fully useable yet
     try:
-      start_time_ms = int(round(time.time() * 1000))
+      self.start_time_ms = int(round(time.time() * 1000))
       signal=0
       while True:
         time.sleep(0.0005)
-        if GPIO.input(BEACON_INPUT_PIN) == 1:
+        if self.GPIO.input(self.BEACON_INPUT_PIN) == 1:
           if signal > 0:
             signal = signal-1
           else:
             signal = signal+1
         now_ms = int(round(time.time() * 1000))
         if signal > 21:
-          print(str(now_ms-start_time_ms) + 'ms; Signal Detected')
+          print(str(now_ms-self.start_time_ms) + 'ms; Signal Detected')
           signal = 0
     except Exception as e:
       logging.error(e)
@@ -157,26 +157,27 @@ class SearchController:
     now_ms = int(round(time.time() * 1000))
     hits = 0
     for x in range(0, 200):
-      if GPIO.input(BEACON_INPUT_PIN) == 0:
+      if self.GPIO.input(self.BEACON_INPUT_PIN) == 0:
         hits = hits+1
       time.sleep(0.0005)
     if hits > 101:
-      logging.info(str(now_ms-start_time_ms)+"ms; hits: "+str(hits)+" LVS detected!")
+      logging.info(str(now_ms-self.start_time_ms)+"ms; hits: "+str(hits)+" LVS detected!")
       logging.info('Landing Drone!')
-      vehicle.mode = dronekit.VehicleMode("LAND")
+      self.vehicle.mode = dronekit.VehicleMode("LAND")
     else:
-      logging.debug(str(now_ms-start_time_ms) + "ms; hits: " + str(hits) + " LVS ignored")
+      logging.debug(str(now_ms-self.start_time_ms) + "ms; hits: " + str(hits) + " LVS ignored")
 
   def __init__(self, connection_string):
-    start_time_ms = int(round(time.time() * 1000))
+    self.start_time_ms = int(round(time.time() * 1000))
     self.start_log()
     self.connection_string = connection_string
     try:  #setup LVS receiver connection
       import RPi.GPIO as GPIO
-      GPIO.setmode(GPIO.BCM)
-      GPIO.setup(BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+      self.GPIO = GPIO
+      self.GPIO.setmode(GPIO.BCM)
+      self.GPIO.setup(self.BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
     except Exception as e:
-      print("LVS Setup failed (no GPIO?)")
+      logging.error("LVS Setup failed (no GPIO?)")
       logging.error(e)
     #setup drone connection
     try:
@@ -188,7 +189,7 @@ class SearchController:
       self.vehicle.groundspeed = self.params["FLY_SPEED"]
       #add the interupt event here
       try:
-        GPIO.add_event_detect( BEACON_INPUT_PIN, GPIO.RISING,
+        GPIO.add_event_detect( self.BEACON_INPUT_PIN, GPIO.RISING,
           callback = self.interrupt_function, bouncetime = 40 )
       except:
         logging.error("No LVS is set up, drone will not auto land.")
@@ -252,6 +253,7 @@ def main():
     logging.basicConfig(filename='search.log', level='DEBUG')
   sc = SearchController(connection_string)
   sc.search_beacon()
+  sys.exit(0)
   
 if __name__ == "__main__":
   main()
