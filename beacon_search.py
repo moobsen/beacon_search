@@ -154,20 +154,18 @@ class SearchController:
 
 
   def interrupt_function(self, channel):
-    if GPIO.input(BEACON_INPUT_PIN) == 0:
-      #beacon found
-      now_ms = int(round(time.time() * 1000))
-      hits = 0
-      for x in range(0, 200):
-        if GPIO.input(BEACON_INPUT_PIN) == 0:
-          hits = hits+1
-        time.sleep(0.0005)
-      if hits > 101:
-        logging.info(str(now_ms-start_time_ms)+"ms; hits: "+str(hits)+" Signal detected!")
-        logging.info('Landing Drone!')
-        vehicle.mode = dronekit.VehicleMode("LAND")
-      else:
-        print(str(now_ms-start_time_ms) + "ms; hits: " + str(hits) + " ignored")
+    now_ms = int(round(time.time() * 1000))
+    hits = 0
+    for x in range(0, 200):
+      if GPIO.input(BEACON_INPUT_PIN) == 0:
+        hits = hits+1
+      time.sleep(0.0005)
+    if hits > 101:
+      logging.info(str(now_ms-start_time_ms)+"ms; hits: "+str(hits)+" LVS detected!")
+      logging.info('Landing Drone!')
+      vehicle.mode = dronekit.VehicleMode("LAND")
+    else:
+      logging.debug(str(now_ms-start_time_ms) + "ms; hits: " + str(hits) + " LVS ignored")
 
   def __init__(self, connection_string):
     start_time_ms = int(round(time.time() * 1000))
