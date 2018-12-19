@@ -2,3 +2,6 @@
 *.swp
 *.log
 search.log
+*.tlog
+*.dat
+*.raw
