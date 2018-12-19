@@ -100,7 +100,7 @@ class SearchController:
     # don't let the user try to arm until autopilot is ready
     while not self.vehicle.is_armable:
       logging.info(" Waiting for vehicle to initialise...")
-      time.sleep(timeout_wait)
+      time.sleep(self.params["WAIT_TIMEOUT"])
     logging.info("Arming motors")
     # Copter should arm in GUIDED mode
     self.vehicle.mode = dronekit.VehicleMode("GUIDED")
