@@ -47,7 +47,7 @@ def main():
   try:
     print("Starting Signal detector")
     #add the interupt event here
-    GPIO.add_event_detect(BEACON_INPUT_PIN, GPIO.RISING,
+    GPIO.add_event_detect(BEACON_INPUT_PIN, GPIO.FALLING,
       callback = interrupt_button_1, bouncetime = 10)
     while True:
       time.sleep(1)

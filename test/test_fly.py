@@ -26,7 +26,8 @@ import beacon_search
 def main():
   try:
     logging.basicConfig(filename='test_fly.log', level='DEBUG')
-    sc=beacon_search.SearchController('/dev/ttyS0,921600')
+    sc=beacon_search.SearchController('/dev/ttyS0,921600', lvs_detection = False)
+    #sc=beacon_search.SearchController('192.168.4.2:14551', lvs_detection = True)
     sc.start_log
     sc.arm_and_takeoff()
     
