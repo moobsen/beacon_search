@@ -26,6 +26,7 @@ import math
 import logging
 import geopy
 import geopy.distance as distance
+import thread
  
 from pymavlink import mavutil
 from yaml import load
@@ -132,27 +133,6 @@ class SearchController:
     while self.vehicle.groundspeed > self.params["MEANDER_MIN_SPEED"]:
       time.sleep(self.params["MEANDER_MIN_SPEED_TIMEOUT"])
 
-  def polling_function(self):
-    #TODO propper threading, this is not fully useable yet
-    try:
-      self.start_time_ms = int(round(time.time() * 1000))
-      signal=0
-      while True:
-        time.sleep(0.0005)
-        if self.GPIO.input(self.BEACON_INPUT_PIN) == 0:
-          if signal > 0:
-            signal = signal-1
-          else:
-            signal = signal+1
-        now_ms = int(round(time.time() * 1000))
-        if signal > 11:
-          print(str(now_ms-self.start_time_ms) + 'ms; Signal Detected')
-          signal = 0
-    except Exception as e:
-      logging.error(e)
-      logging.error(traceback.format_exc())
-
-
   def interrupt_function(self, channel):
     now_ms = int(round(time.time() * 1000))
     hits = 0
@@ -163,30 +143,42 @@ class SearchController:
         hits = hits-1
       time.sleep(0.0005) #lowest on raspi
     if hits > 11:
-      logging.info(str(now_ms-self.start_time_ms)+"ms; hits: "+str(hits)+" LVS detected!")
+      logging.info(str(now_ms-self.start_time_ms)+"ms; hits: "+str(hits)+" Signal detected!")
       logging.info('Landing Drone!')
       self.vehicle.mode = dronekit.VehicleMode("LAND")
     else:
-      logging.debug(str(now_ms-self.start_time_ms) + "ms; hits: " + str(hits) + " LVS ignored")
+      logging.debug(str(now_ms-self.start_time_ms) + "ms; hits: " + str(hits) + " Signal ignored")
 
-  def __init__(self, connection_string, lvs_detection):
+  def signal_polling_thread(self, vehicle):
+    try:
+      print("Starting Signal detector")
+      start_time_ms = int(round(time.time() * 1000))
+      signal=0
+      while True:
+        time.sleep(0.0005)
+        if self.GPIO.input(self.BEACON_INPUT_PIN) == 1:
+        # NO signal
+          if signal > 0:
+            signal = signal-1
+        else:
+        # SIGNAL
+          signal = signal+1
+        now_ms = int(round(time.time() * 1000))
+        if signal > 11:
+          #signal found often enough
+          print(str(now_ms-start_time_ms) + 'ms; Signal Detected, exiting')
+          self.vehicle.mode = dronekit.VehicleMode('LAND')
+          sys.exit(1)
+    except Exception as e:
+      logging.error("Caught exeption in polling thread")
+      logging.error(traceback.format_exc())
+ 
+  def __init__(self, connection_string, signal_detection):
     self.start_time_ms = int(round(time.time() * 1000))
     self.start_log()
     self.connection_string = connection_string
-    if lvs_detection == True:
-      try:  #setup LVS receiver connection
-        import RPi.GPIO as GPIO
-        self.GPIO = GPIO
-        self.GPIO.setmode(GPIO.BCM)
-        self.GPIO.setup(self.BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-        GPIO.add_event_detect( self.BEACON_INPUT_PIN, GPIO.FALLING,
-          callback = self.interrupt_function, bouncetime = 10 )
-      except Exception as e:
-        logging.error("LVS Setup failed (no GPIO?)")
-        logging.error(e)
-    else:
-      logging.info("LVS detection not active!")
-    #setup drone connection
+    
+    # Setup drone connection
     try:
       params = self.load_parameters()
       drone = self.vehicle
@@ -197,6 +189,23 @@ class SearchController:
     except Exception as e:
       logging.error("Caught exeption")
       logging.error(traceback.format_exc())
+    
+    # Setup signal detection
+    if signal_detection == True:
+      try:  #setup LVS receiver connection
+        import RPi.GPIO as GPIO
+        self.GPIO = GPIO
+        self.GPIO.setmode(GPIO.BCM)
+        self.GPIO.setup(self.BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+        #GPIO.add_event_detect( self.BEACON_INPUT_PIN, GPIO.FALLING,
+        #  callback = self.interrupt_function, bouncetime = 10 )
+        thread.start_new_thread( self.signal_polling_thread, (self.vehicle, ) )
+      except Exception as e:
+        logging.error("Signal detection setup failed (no GPIO?)")
+        logging.error(e)
+    else:
+      logging.info("Signal detection not active!")
+
 
   def search_beacon(self):
     if self.vehicle == 'None':
@@ -252,7 +261,7 @@ def main():
   else:
     print('No loging level specified, using DEBUG')
     logging.basicConfig(filename='search.log', level='DEBUG')
-  sc = SearchController(connection_string, lvs_detection = True)
+  sc = SearchController(connection_string, signal_detection = True)
   sc.search_beacon()
   sys.exit(0)
   
