@@ -24,7 +24,7 @@ fi
 DESC="Start a script to let a drone follow this device"
 case "$1" in
   start)
-    python /home/pi/src/moobsen/beacon_search/beacon_search.py --connect 0.0.0.0:14550 --log DEBUG &
+    python /home/pi/src/moobsen/beacon_search/beacon_search.py --connect /dev/ttyS0,115200 --log DEBUG &
     ;;
   stop)
     killall python
