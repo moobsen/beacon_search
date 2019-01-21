@@ -100,7 +100,9 @@ class SearchController:
     logging.info("Basic pre-arm checks")
     # don't let the user try to arm until autopilot is ready
     while not self.vehicle.is_armable:
-      logging.info(" Waiting for vehicle to initialise...")
+      now_ms = int(round(time.time() * 1000))
+      logging.info(str( (now_ms-self.start_time_ms)/1000 ) + \
+        "s: Waiting for vehicle to initialise...")
       time.sleep(self.params["WAIT_TIMEOUT"])
     logging.info("Arming motors")
     # Copter should arm in GUIDED mode
