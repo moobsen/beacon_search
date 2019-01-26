@@ -107,22 +107,23 @@ class SearchController:
     logging.info("Arming motors to losen them")
     self.vehicle.mode = dronekit.VehicleMode("STABILIZE")
     self.vehicle.armed = True
-    time.sleep(4)
-    self.vehicle.armed = False
+    time.sleep(self.params["WAIT_ARM_TIMEOUT"])
+    self.vehicle.mode = dronekit.VehicleMode("GUIDED")
 
     # For beacon search we need Guided mode
     start_time_ms = int(round(time.time() * 1000))
     while self.vehicle.mode != "GUIDED":
+      self.vehicle.mode = dronekit.VehicleMode("GUIDED")
       while self.vehicle.armed is not True:
         self.vehicle.armed = True
         now_ms = int(round(time.time() * 1000))
         logging.info(str( (now_ms-self.start_time_ms)/1000 ) + \
           "s: Waiting for drone to arm in guided... bad GPS?")
         time.sleep(self.params["WAIT_ARM_TIMEOUT"])
-      dronekit.VehicleMode("GUIDED")
     logging.info("Taking off!")
+    self.vehicle.mode = dronekit.VehicleMode("GUIDED")
+    self.vehicle.armed = True
     self.vehicle.simple_takeoff(self.params["TAKEOFF_ALTITUDE"])
-    
     # check if height is safe before going anywhere
     while True:
       current_altitude = self.vehicle.location.global_relative_frame.alt 
@@ -166,7 +167,7 @@ class SearchController:
 
   def signal_polling_thread(self, vehicle):
     try:
-      print("Starting Signal detector")
+      logging.info("Starting Signal detector")
       start_time_ms = int(round(time.time() * 1000))
       signal=0
       while True:
@@ -179,9 +180,9 @@ class SearchController:
         # SIGNAL
           signal = signal+1
         now_ms = int(round(time.time() * 1000))
-        if signal > 11:
+        if signal > 15:
           #signal found often enough
-          print(str(now_ms-start_time_ms) + 'ms; Signal Detected, exiting')
+          logging.info(str(now_ms-start_time_ms) + 'ms; Signal Detected, exiting')
           self.vehicle.mode = dronekit.VehicleMode('LAND')
           sys.exit(1)
     except Exception as e:
