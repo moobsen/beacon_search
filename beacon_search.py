@@ -97,23 +97,36 @@ class SearchController:
     """
     Arms vehicle and fly to aTargetAltitude.
     """
-    logging.info("Basic pre-arm checks")
+    logging.info("Basic pre-arm routine")
     # don't let the user try to arm until autopilot is ready
-    while not self.vehicle.is_armable:
-      now_ms = int(round(time.time() * 1000))
-      logging.info(str( (now_ms-self.start_time_ms)/1000 ) + \
-        "s: Waiting for vehicle to initialise...")
-      time.sleep(self.params["WAIT_TIMEOUT"])
-    logging.info("Arming motors")
-    # Copter should arm in GUIDED mode
-    self.vehicle.mode = dronekit.VehicleMode("GUIDED")
-    self.vehicle.armed = True  
+    #while not self.vehicle.is_armable:
+    #  now_ms = int(round(time.time() * 1000))
+    #  logging.info(str( (now_ms-self.start_time_ms)/1000 ) + \
+    #    "s: Waiting for vehicle to initialise...")
+    #  time.sleep(self.params["WAIT_TIMEOUT"])
+    logging.info("Arming motors to losen them")
+    self.vehicle.mode = dronekit.VehicleMode("STABILIZE")
+    self.vehicle.armed = True
+    time.sleep(4)
+    self.vehicle.armed = False
+
+    # For beacon search we need Guided mode
+    start_time_ms = int(round(time.time() * 1000))
+    while self.vehicle.mode != "GUIDED":
+      while self.vehicle.armed is not True:
+        self.vehicle.armed = True
+        now_ms = int(round(time.time() * 1000))
+        logging.info(str( (now_ms-self.start_time_ms)/1000 ) + \
+          "s: Waiting for drone to arm in guided... bad GPS?")
+        time.sleep(self.params["WAIT_ARM_TIMEOUT"])
+      dronekit.VehicleMode("GUIDED")
     logging.info("Taking off!")
     self.vehicle.simple_takeoff(self.params["TAKEOFF_ALTITUDE"])
+    
     # check if height is safe before going anywhere
     while True:
-      logging.info(" rangefinder.distance: %s"%self.vehicle.rangefinder.distance)
       current_altitude = self.vehicle.location.global_relative_frame.alt 
+      logging.info(" rangefinder.distance: %s"%current_altitude)
       if current_altitude >= self.params["TAKEOFF_ALTITUDE"]*0.9: 
         #Trigger just below target alt.
         logging.info("Reached target altitude")

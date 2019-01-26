@@ -9,4 +9,4 @@ MEANDER_MIN_TIMEOUT: 6 # in seconds, min time for meander
 MEANDER_WIDTH: 12 #in meters
 SEARCH_ANGLE: 30 #in degrees
 TAKEOFF_ALTITUDE: 0.8 # in meters
-WAIT_TIMEOUT: 1 # in seconds, time between armable checks
+WAIT_ARM_TIMEOUT: 1 # in seconds, time between armable checks
