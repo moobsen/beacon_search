@@ -1,12 +1,12 @@
 CON_TIMEOUT: 1 # in seconds, time between connection attempts
-FLY_ALTITUDE: 1  # in meters
+FLY_ALTITUDE: 0.8  # in meters
 FLY_SPEED: 3 # in meters/second
-MEANDER_COUNT: 4
-MEANDER_LENGTH: 4 #in meters
-MEANDER_MIN_SPEED: 0.5 # in sec, if drone gets slow than this, next meander starts
+MEANDER_COUNT: 3
+MEANDER_LENGTH: 10 #in meters
+MEANDER_MIN_SPEED: 1 # in sec, if drone gets slow than this, next meander starts
 MEANDER_MIN_SPEED_TIMEOUT: 1 #time between checks if drone slowed down enough
-MEANDER_MIN_TIMEOUT: 4 # in seconds, min time for meander
-MEANDER_WIDTH: 4 #in meters
+MEANDER_MIN_TIMEOUT: 6 # in seconds, min time for meander
+MEANDER_WIDTH: 12 #in meters
 SEARCH_ANGLE: 30 #in degrees
-TAKEOFF_ALTITUDE: 1 # in meters
-WAIT_TIMEOUT: 1 # in seconds, time between armable checks
+TAKEOFF_ALTITUDE: 0.8 # in meters
+WAIT_ARM_TIMEOUT: 1 # in seconds, time between armable checks
