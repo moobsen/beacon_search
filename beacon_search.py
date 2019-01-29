@@ -96,11 +96,14 @@ class SearchController:
     """
     Arms vehicle and fly to aTargetAltitude.
     """
-    logging.info("Basic pre-arm checks")
+    logging.info("Arming and disarming to losen up motors")
+    self.vehicle.mode = dronekit.VehicleMode("STABILIZE")
+    self.vehicle.armed = True
+    logging.info("Basic pre-arm checks for guided mode")
     # don't let the user try to arm until autopilot is ready
-    while not self.vehicle.is_armable:
-      logging.info(" Waiting for vehicle to initialise...")
-      time.sleep(self.params["WAIT_TIMEOUT"])
+#    while not self.vehicle.is_armable:
+#      logging.info(" Waiting for vehicle to initialise...")
+#      time.sleep(self.params["WAIT_TIMEOUT"])
     logging.info("Arming motors")
     # Copter should arm in GUIDED mode
     self.vehicle.mode = dronekit.VehicleMode("GUIDED")
@@ -241,6 +244,8 @@ def main():
   parser = argparse.ArgumentParser(description='Find avalanche beacon with drone')
   parser.add_argument('--connect', help="vehicle connection target string.")
   parser.add_argument('--log', help="logging level")
+  parser.add_argument('--nosearch', help="no search for beacon, only fly the search pattern",
+    action="store_true")
   args = parser.parse_args()
   if args.connect:
     connection_string = args.connect
@@ -252,7 +257,10 @@ def main():
   else:
     print('No loging level specified, using DEBUG')
     logging.basicConfig(filename='search.log', level='DEBUG')
-  sc = SearchController(connection_string, lvs_detection = True)
+  if args.nosearch:
+    sc = SearchController(connection_string, lvs_detection = False)
+  else:
+    sc = SearchController(connection_string, lvs_detection = True)
   sc.search_beacon()
   sys.exit(0)
   
