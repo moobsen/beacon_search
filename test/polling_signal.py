@@ -20,7 +20,7 @@ import traceback
 import sys, time
 import RPi.GPIO as GPIO
 
-BEACON_INPUT_PIN = 17 #global GPIO PIN number (I know)
+BEACON_INPUT_PIN = 17 #global GPIO PIN number
 
 def setup_buttons():
   GPIO.setmode(GPIO.BCM)
@@ -38,7 +38,7 @@ def main():
     while True:
       time.sleep(0.0005)
       i=i+1
-      if GPIO.input(BEACON_INPUT_PIN) == 1:
+      if GPIO.input(BEACON_INPUT_PIN) == 0:
       # NO signal
         f.write(str(i) +' 0\n')
         if hits > 0:
@@ -53,7 +53,7 @@ def main():
       #if hits == 20:
       #  print(str(now_ms-start_time_ms) + ' ms hits is 20')
       if hits > 11:
-        print(str(now_ms-start_time_ms) + 'ms; Signal Detected')
+        #print(str(now_ms-start_time_ms) + 'ms; Signal Detected')
         hits = 0
       sys.stdout.flush()
       if i > 10000:

@@ -19,7 +19,7 @@
 import time
 import RPi.GPIO as GPIO
 
-BEACON_INPUT_PIN = 17 #global GPIO PIN number (I know)
+BEACON_INPUT_PIN = 17 #GPIO PIN Raspberry Zero
 
 def setup_buttons():
   GPIO.setmode(GPIO.BCM)
@@ -27,27 +27,25 @@ def setup_buttons():
 
 def main():
   start_time_ms = int(round(time.time() * 1000))
+
   def interrupt_button_1(channel):
-    if GPIO.input(BEACON_INPUT_PIN) == 0:
+    if GPIO.input(BEACON_INPUT_PIN) == 1:
       #beacon found
       now_ms = int(round(time.time() * 1000))
       hits = 0
       for x in range(0, 20):
         if GPIO.input(BEACON_INPUT_PIN) == 0:
           hits = hits+1
-        else:
-          hits = hits-1
         time.sleep(0.0005) #lowest on raspi zero
       if hits > 11:
         print(str(now_ms-start_time_ms) + "ms; hits: " + str(hits) + " Signal detected!")
       else:
         print(str(now_ms-start_time_ms) + "ms; hits: " + str(hits) + " ignored")
-      #vehicle.mode = dronekit.VehicleMode("LAND")
-  setup_buttons()
   try:
     print("Starting Signal detector")
+    setup_buttons()
     #add the interupt event here
-    GPIO.add_event_detect(BEACON_INPUT_PIN, GPIO.FALLING,
+    GPIO.add_event_detect(BEACON_INPUT_PIN, GPIO.RISING,
       callback = interrupt_button_1, bouncetime = 10)
     while True:
       time.sleep(1)
