@@ -33,11 +33,11 @@ def main():
       #beacon found
       now_ms = int(round(time.time() * 1000))
       hits = 0
-      for x in range(0, 20):
-        if GPIO.input(BEACON_INPUT_PIN) == 0:
+      for x in range(0, 140):
+        if GPIO.input(BEACON_INPUT_PIN) == 1:
           hits = hits+1
         time.sleep(0.0005) #lowest on raspi zero
-      if hits > 11:
+      if hits > 85:
         print(str(now_ms-start_time_ms) + "ms; hits: " + str(hits) + " Signal detected!")
       else:
         print(str(now_ms-start_time_ms) + "ms; hits: " + str(hits) + " ignored")
@@ -46,7 +46,7 @@ def main():
     setup_buttons()
     #add the interupt event here
     GPIO.add_event_detect(BEACON_INPUT_PIN, GPIO.RISING,
-      callback = interrupt_button_1, bouncetime = 10)
+      callback = interrupt_button_1, bouncetime = 70)
     while True:
       time.sleep(1)
   except Exception as e:
