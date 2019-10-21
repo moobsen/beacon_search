@@ -1,7 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-    Copyright {2018} {Bluebird Mountain | Moritz Obermeier}
+    Copyright {2019} {Bluebird Mountain | Moritz Obermeier}
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,20 +19,15 @@
 import dronekit
 import argparse
 import traceback
-import threading
 import time
 import sys
 import math
 import logging
 import geopy
-import geopy.distance as distance
-import thread
+from geopy import distance
  
 from pymavlink import mavutil
 from yaml import load
-
-#parameters now come from PARAMETERS.yaml
-
 
 class SearchController:
   BEACON_INPUT_PIN = 17 #GPIO PIN number in Raspberry BCM Mode
@@ -40,18 +35,13 @@ class SearchController:
   connection_string = 'None'
   start_time_ms = 0
   params = []
-  
-  def start_log(self):
-    #start log entry
-    logging.info('################## Starting script log ##################')
-    logging.info("System Time:" + time.strftime("%c"))
 
   def load_parameters(self):
     try:
-      stream = file('/home/pi/src/moobsen/beacon_search/PARAMETERS.yaml', 'r')
+      stream = open('/home/pi/src/moobsen/beacon_search/PARAMETERS.yaml', 'r')
     except:
       import os
-      stream = file(os.getcwd()+'/PARAMETERS.yaml','r')
+      stream = open(os.getcwd()+'/PARAMETERS.yaml','r')
     self.params = load(stream)
     logging.info('Loaded parameters: %s' % self.params)
     return self.params
@@ -86,8 +76,7 @@ class SearchController:
     try:
       # connect to the vehicle
       logging.info('Connecting to vehicle on: %s' % self.connection_string)
-      print self.connection_string
-      self.vehicle = dronekit.connect(self.connection_string, wait_ready=False)
+      self.vehicle = dronekit.connect(self.connection_string, wait_ready=True)
     except Exception as e:
       logging.error("Exception caught. Most likely connection to vehicle failed.")
       logging.error(traceback.format_exc())
@@ -95,14 +84,15 @@ class SearchController:
 
   def arm_and_takeoff(self):
     """
-    Arms vehicle and fly to aTargetAltitude.
+    Arms vehicle and takes off to TAKEOFF_ALTITUDE
+    FAILS IF VEHICLE IS ALREADY ARMED
     """
     logging.info("Basic pre-arm routine")
     logging.info("Arming motors in Stabilize to losen them")
     self.vehicle.mode = dronekit.VehicleMode("STABILIZE")
     self.vehicle.armed = True
     time.sleep(self.params["WAIT_ARM_TIMEOUT"])
-    # For beacon search we armed Guided mode
+    # For beacon search we need Guided Mode
     logging.info("Trying to change to Guided")
     self.vehicle.mode = dronekit.VehicleMode("GUIDED")
     start_time_ms = int(round(time.time() * 1000))
@@ -128,16 +118,14 @@ class SearchController:
       time.sleep(0.5)
 
   def go_forward(self, forward_distance, bearing):
-    """
-    /vehicle/ goes for /distance/ meters in the direction of /bearing/
-    """
     curr = self.vehicle.location.global_frame
-    d = geopy.distance.VincentyDistance(meters = forward_distance)
+    d = distance.distance(meters = forward_distance)
     dest = d.destination(geopy.Point(curr.lat, curr.lon), bearing)
     drone_dest = dronekit.LocationGlobalRelative(dest.latitude,
       dest.longitude, self.params["FLY_ALTITUDE"])
     logging.info('Going to: %s' % drone_dest)
-    self.goto_position_above_terrain(drone_dest)
+    #self.goto_position_above_terrain(drone_dest)
+    self.vehicle.simple_goto(drone_dest)
     time.sleep(self.params["MEANDER_MIN_TIMEOUT"])
     while self.vehicle.groundspeed > self.params["MEANDER_MIN_SPEED"]:
       time.sleep(self.params["MEANDER_MIN_SPEED_TIMEOUT"])
@@ -157,34 +145,10 @@ class SearchController:
       self.vehicle.mode = dronekit.VehicleMode("LAND")
     else:
       logging.debug(str(now_ms-self.start_time_ms) + "ms; hits: " + str(hits) + " Signal ignored")
-
-  def signal_polling_thread(self, vehicle):
-    try:
-      logging.info("Starting Signal detector")
-      start_time_ms = int(round(time.time() * 1000))
-      signal=0
-      while True:
-        time.sleep(0.0005)
-        if self.GPIO.input(self.BEACON_INPUT_PIN) == 1:
-        # NO signal
-          if signal > 0:
-            signal = signal-1
-        else:
-        # SIGNAL
-          signal = signal+1
-        now_ms = int(round(time.time() * 1000))
-        if signal > 15:
-          #signal found often enough
-          logging.info(str(now_ms-start_time_ms) + 'ms; Signal Detected, exiting')
-          self.vehicle.mode = dronekit.VehicleMode('LAND')
-          sys.exit(1)
-    except Exception as e:
-      logging.error("Caught exeption in polling thread")
-      logging.error(traceback.format_exc())
  
   def __init__(self, connection_string, signal_detection):
+    logging.info('#################### Beginning SC init ########################')
     self.start_time_ms = int(round(time.time() * 1000))
-    self.start_log()
     self.connection_string = connection_string
     
     # Setup drone connection
@@ -206,9 +170,8 @@ class SearchController:
         self.GPIO = GPIO
         self.GPIO.setmode(GPIO.BCM)
         self.GPIO.setup(self.BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-        #GPIO.add_event_detect( self.BEACON_INPUT_PIN, GPIO.FALLING,
-        #  callback = self.interrupt_function, bouncetime = 10 )
-        thread.start_new_thread( self.signal_polling_thread, (self.vehicle, ) )
+        GPIO.add_event_detect( self.BEACON_INPUT_PIN, GPIO.FALLING,
+          callback = self.interrupt_function, bouncetime = 10 )
       except Exception as e:
         logging.error("Signal detection setup failed (no GPIO?)")
         logging.error(e)
@@ -245,8 +208,8 @@ class SearchController:
         #go sideways
         self.go_forward(self.params["MEANDER_WIDTH"], bearing+85*sign)
         sign=sign*-1
-        logging.info('left search mode')
 
+      logging.info('left search mode')
       #STEP 5: land
       self.vehicle.mode = dronekit.VehicleMode('LAND')
     except Exception as e:
@@ -255,6 +218,12 @@ class SearchController:
       sys.exit(1)
 
 def main():
+  logging.basicConfig(
+                      filename='search.log',
+                      format='%(asctime)s %(levelname)-8s %(message)s',
+                      level=logging.DEBUG,
+                      datefmt='%Y-%m-%d %H:%M:%S')
+
   #Argument Parsing
   parser = argparse.ArgumentParser(description='Find avalanche beacon with drone')
   parser.add_argument('--connect', help="vehicle connection target string.")
@@ -262,20 +231,23 @@ def main():
   parser.add_argument('--nosearch', help="no search for beacon, only fly the search pattern",
     action="store_true")
   args = parser.parse_args()
+
+  if args.log:
+    logging.basicConfig(level=args.log.upper())
+
   if args.connect:
     connection_string = args.connect
   else:
-    print("No connection specified via --connect, trying 127.0.0.1:14551")
+    logging.info("No connection specified via --connect, trying 127.0.0.1:14551")
     connection_string = "127.0.0.1:14551"
-  if args.log:
-    logging.basicConfig(filename='search.log', level=args.log.upper())
-  else:
-    print('No loging level specified, using DEBUG')
-    logging.basicConfig(filename='search.log', level='DEBUG')
+
+  #Creating SearchController Object
   if args.nosearch:
     sc = SearchController(connection_string, signal_detection = False)
   else:
     sc = SearchController(connection_string, signal_detection = True)
+  
+  #Starting SearchCotroller Instance
   sc.search_beacon()
   sys.exit(0)
   
