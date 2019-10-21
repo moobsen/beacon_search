@@ -1,5 +1,4 @@
 dronekit
 geopy
 math
-mavutil
 yaml
