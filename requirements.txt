@@ -1,3 +1,4 @@
 dronekit
 geopy
 saneyaml
+rpi.gpio
