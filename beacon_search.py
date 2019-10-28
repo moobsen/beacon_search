@@ -27,7 +27,7 @@ import geopy
 from geopy import distance
  
 from pymavlink import mavutil
-from saneyaml import load
+from yaml import safe_load
 
 class SearchController:
   BEACON_INPUT_PIN = 17 #GPIO PIN number in Raspberry BCM Mode
@@ -42,7 +42,7 @@ class SearchController:
     except:
       import os
       stream = open(os.getcwd()+'/PARAMETERS.yaml','r')
-    self.params = load(stream)
+    self.params = safe_load(stream)
     logging.info('Loaded parameters: %s' % self.params)
     return self.params
 
