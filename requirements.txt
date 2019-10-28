@@ -1,4 +1,3 @@
 dronekit
 geopy
-math
-yaml
+saneyaml

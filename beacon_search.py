@@ -27,7 +27,7 @@ import geopy
 from geopy import distance
  
 from pymavlink import mavutil
-from yaml import load
+from saneyaml import load
 
 class SearchController:
   BEACON_INPUT_PIN = 17 #GPIO PIN number in Raspberry BCM Mode
