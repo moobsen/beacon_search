@@ -24,8 +24,8 @@ import sys
 import math
 import logging
 import geopy
-from geopy import distance
- 
+import RPi.GPIO as GPIO
+from geopy import distance 
 from pymavlink import mavutil
 from yaml import safe_load
 
@@ -34,6 +34,7 @@ class SearchController:
   vehicle = 'None'
   connection_string = 'None'
   start_time_ms = 0
+  signal_detection=True
   params = []
 
   def load_parameters(self):
@@ -76,7 +77,7 @@ class SearchController:
     try:
       # connect to the vehicle
       logging.info('Connecting to vehicle on: %s' % self.connection_string)
-      self.vehicle = dronekit.connect(self.connection_string, wait_ready=True)
+      self.vehicle = dronekit.connect(self.connection_string, wait_ready=False)
     except Exception as e:
       logging.error("Exception caught. Most likely connection to vehicle failed.")
       logging.error(traceback.format_exc())
@@ -133,16 +134,17 @@ class SearchController:
   def interrupt_function(self, channel):
     now_ms = int(round(time.time() * 1000))
     hits = 0
-    for x in range(0, 20):
-      if self.GPIO.input(self.BEACON_INPUT_PIN) == 0:
+    for x in range(0, 140):
+      if self.GPIO.input(self.BEACON_INPUT_PIN) == 1:
         hits = hits+1
-      else:
-        hits = hits-1
+      #else:
+      #  hits = hits-1
       time.sleep(0.0005) #lowest on raspi
-    if hits > 11:
+    if hits > 85:
       logging.info(str(now_ms-self.start_time_ms)+"ms; hits: "+str(hits)+" Signal detected!")
       logging.info('Landing Drone!')
       self.vehicle.mode = dronekit.VehicleMode("LAND")
+      GPIO.remove_event_detect(self.BEACON_INPUT_PIN)
     else:
       logging.debug(str(now_ms-self.start_time_ms) + "ms; hits: " + str(hits) + " Signal ignored")
  
@@ -170,8 +172,6 @@ class SearchController:
         self.GPIO = GPIO
         self.GPIO.setmode(GPIO.BCM)
         self.GPIO.setup(self.BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-        GPIO.add_event_detect( self.BEACON_INPUT_PIN, GPIO.FALLING,
-          callback = self.interrupt_function, bouncetime = 10 )
       except Exception as e:
         logging.error("Signal detection setup failed (no GPIO?)")
         logging.error(e)
@@ -188,8 +188,11 @@ class SearchController:
       start = self.vehicle.location.global_frame
       bearing = self.vehicle.heading
 
-      #STEP 2: takeoff
+      #STEP 2: takeoff (optionally activate search for beacon) 
       self.arm_and_takeoff()
+      if self.signal_detection == True:
+        GPIO.add_event_detect( self.BEACON_INPUT_PIN, GPIO.RISING,
+          callback = self.interrupt_function, bouncetime = 70 )
       
       #STEP 3: half meander once in the beginning
       # go straight  
