@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-    Copyright {2019} {Bluebird Mountain | Moritz Obermeier}
+    Copyright {2020} {Bluebird Mountain | Moritz Obermeier}
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
