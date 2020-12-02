@@ -204,7 +204,7 @@ class SearchController:
     else:
       logging.info("Signal detection not active!")
 
-  def search_beacon(self, search_pattern='triang'): 
+  def search_beacon(self, search_pattern='meander'): 
     if self.vehicle == 'None':
       logging.error("No connection to vehicle.")
       sys.exit()
@@ -223,7 +223,7 @@ class SearchController:
 
       #STEP 3: Start a search pattern
       #STEP 3.a: Triangular opening meander (directed search)
-      if search_pattern == 'triang': # meander in an opening triangular
+      if search_pattern == 'meander': # meander in an opening triangular
         #half meander once in the beginning
         #go straight
         self.go_forward(self.params["MEANDER_LENGTH"], bearing)
@@ -237,13 +237,9 @@ class SearchController:
             logging.warning("Flight mode not Guided - aborting!")
             break
           #go straight
-          print('go forward')
           self.go_forward(self.params["MEANDER_LENGTH"], bearing)
-          print('went forward')
           #go sideways
-          print('go sideways')
           self.go_forward(self.params["MEANDER_WIDTH"], bearing+85*sign)
-          print('went sideways')
           sign=sign*-1
 
         logging.info('left search mode')
@@ -255,17 +251,18 @@ class SearchController:
         dist_control = self.params["SPIRAL_DIST_CONTROL"] # Factor that controls the distance between loops of spiral
         speed = self.params["SPIRAL_SPEED"] # Speed for spiral flight
         max_flight_time = self.params["MAX_FLIGHT_TIME"]
-        dur = 1 # !=0 to avoid devision by 0 and 1 for a quite neat first spiral loop
+        dur0 = 0.25 # !=0 to avoid devision by 0 and 0.25 for a quite neat first spiral loop
+        dur = dur0
         while dur < max_flight_time:
           if self.vehicle.mode.name != "GUIDED":
             logging.warning("Flight mode not Guided - aborting!")
-            break
+            break 
           x = math.sin(alpha)*speed #alpha controles the direction, speed controls the total speed
           y = math.cos(alpha)*speed
           self.send_ned_velocity(x,y,0,1)
           alpha += 1/math.sqrt(dur)*dist_control # change the angle in a way that an archimedean spiral is formed
-          dur = 5 + int(round(time.time()))-start_s # 1
-          print('Spiral search: Flight time: ' +str(dur) + ' s')
+          dur = dur0 + int(round(time.time()))-start_s # 1
+          print('Spiral search: Flighttime: ' +str(dur) + ' s')
 
         logging.info('left search mode') 
 
@@ -292,10 +289,10 @@ def main():
   parser = argparse.ArgumentParser(description='Find avalanche beacon with drone')
   parser.add_argument('--connect', help="vehicle connection target string.")
   parser.add_argument('--log', help="logging level")
-  parser.add_argument('--nosearch', help="no search for beacon, only fly the search pattern",
+  parser.add_argument('--nosearch', help="no signal detection, only fly the search pattern",
                       action="store_true")
-  parser.add_argument('--searchpattern', help="Optional: choose a search pattern (e.g. triang, sprial)",
-                      default="triang")
+  parser.add_argument('--searchpattern', help="Optional: choose a search pattern, e.g. meander (default), sprial)",
+                      default="meander")
   args = parser.parse_args()
 
   if args.log:
