@@ -24,12 +24,16 @@ import sys
 import math
 import logging
 import geopy
-import RPi.GPIO as GPIO
+try:
+    import RPi.GPIO as GPIO #works only on a Raspberry Pi
+except:
+    noRPi = True #alternative for simulation on other computer
 from geopy import distance 
 from pymavlink import mavutil
 from yaml import safe_load
 
 class SearchController:
+  #class attributes
   BEACON_INPUT_PIN = 17 #GPIO PIN number in Raspberry BCM Mode
   vehicle = 'None'
   connection_string = 'None'
@@ -147,12 +151,30 @@ class SearchController:
       GPIO.remove_event_detect(self.BEACON_INPUT_PIN)
     else:
       logging.debug(str(now_ms-self.start_time_ms) + "ms; hits: " + str(hits) + " Signal ignored")
- 
+
+  def send_ned_velocity(self, velocity_x=0, velocity_y=0, velocity_z=0, duration=0):
+    #Move vehicle in direction based on specified velocity vectors
+    msg = self.vehicle.message_factory.set_position_target_local_ned_encode(
+      0,       # time_boot_ms (not used)
+      0, 0,    # target system, target component
+      mavutil.mavlink.MAV_FRAME_LOCAL_NED, # frame
+      0b0000111111000111, # type_mask (only speeds enabled)
+      0, 0, 0, # x, y, z positions (not used)
+      velocity_x, velocity_y, velocity_z, # x, y, z velocity in m/s
+      0, 0, 0, # x, y, z acceleration (not supported yet, ignored in GCS_Mavlink)
+      0, 0)    # yaw, yaw_rate (not supported yet, ignored in GCS_Mavlink)
+
+    # send command to vehicle on 1 Hz cycle
+    for x in range(0,duration):
+        self.vehicle.send_mavlink(msg)
+        time.sleep(1)
+
   def __init__(self, connection_string, signal_detection):
     logging.info('#################### Beginning SC init ########################')
     self.start_time_ms = int(round(time.time() * 1000))
-    self.connection_string = connection_string
-    
+    self.connection_string = connection_string #needed to overwrite default of the class for all methods
+    self.signal_detection = signal_detection #needed to overwrite default of the class for all methods
+
     # Setup drone connection
     try:
       params = self.load_parameters()
@@ -164,22 +186,25 @@ class SearchController:
     except Exception as e:
       logging.error("Caught exeption")
       logging.error(traceback.format_exc())
-    
+
     # Setup signal detection
-    if signal_detection == True:
-      try:  #setup LVS receiver connection
-        import RPi.GPIO as GPIO
-        self.GPIO = GPIO
-        self.GPIO.setmode(GPIO.BCM)
-        self.GPIO.setup(self.BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-      except Exception as e:
-        logging.error("Signal detection setup failed (no GPIO?)")
-        logging.error(e)
+    if self.signal_detection == True:
+      if noRPi == False: #if rpi.gpio was imported sucessfully
+        try: 
+          #setup LVS receiver connection
+          #import RPi.GPIO as GPIO
+          self.GPIO = GPIO
+          self.GPIO.setmode(GPIO.BCM)
+          self.GPIO.setup(self.BEACON_INPUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+        except Exception as e:
+          logging.error("Signal detection setup failed (no GPIO?)")
+          logging.error(e)
+      else:
+        logging.info('Signal detection not active! Signal detection is not possible. Either not working on a raspberry pi or python package <rpi.gpio> is not installed')
     else:
       logging.info("Signal detection not active!")
 
-
-  def search_beacon(self):
+  def search_beacon(self, search_pattern='meander'): 
     if self.vehicle == 'None':
       logging.error("No connection to vehicle.")
       sys.exit()
@@ -191,34 +216,67 @@ class SearchController:
       #STEP 2: takeoff (optionally activate search for beacon) 
       self.arm_and_takeoff()
       if self.signal_detection == True:
-        GPIO.add_event_detect( self.BEACON_INPUT_PIN, GPIO.RISING,
-          callback = self.interrupt_function, bouncetime = 70 )
-      
-      #STEP 3: half meander once in the beginning
-      # go straight  
-      self.go_forward(self.params["MEANDER_LENGTH"], bearing)
-      #go sideways
-      self.go_forward(self.params["MEANDER_WIDTH"]/2, bearing+85)
+        if noRPi == False:
+          GPIO.add_event_detect(self.BEACON_INPUT_PIN, GPIO.RISING, callback = self.interrupt_function, bouncetime = 70 )
+        else:
+          logging.info ('Signal detection not active! Signal detection is not possible. Either not working on a raspberry pi or python package <rpi.gpio> is not installed')
 
-      #STEP 4 calculate search path for normal meander
-      sign=-1
-      for i in range(1,self.params["MEANDER_COUNT"]):
-        if self.vehicle.mode.name != "GUIDED":
-          logging.warning("Flight mode not Guided - aborting!")
-          break
+      #STEP 3: Start a search pattern
+      #STEP 3.a: Triangular opening meander (directed search)
+      if search_pattern == 'meander': # meander in an opening triangular
+        #half meander once in the beginning
         #go straight
         self.go_forward(self.params["MEANDER_LENGTH"], bearing)
         #go sideways
-        self.go_forward(self.params["MEANDER_WIDTH"], bearing+85*sign)
-        sign=sign*-1
+        self.go_forward(self.params["MEANDER_WIDTH"]/2, bearing+85)
 
-      logging.info('left search mode')
-      #STEP 5: land
+        #calculate search path for normal meander
+        sign=-1
+        for i in range(1,self.params["MEANDER_COUNT"]):
+          if self.vehicle.mode.name != "GUIDED":
+            logging.warning("Flight mode not Guided - aborting!")
+            break
+          #go straight
+          self.go_forward(self.params["MEANDER_LENGTH"], bearing)
+          #go sideways
+          self.go_forward(self.params["MEANDER_WIDTH"], bearing+85*sign)
+          sign=sign*-1
+
+        logging.info('left search mode')
+
+      #STEP 3.b: Archimedean Spiral (open search in all directions)
+      if search_pattern == 'spiral': # move in an spiral
+        start_s = int(round(time.time()))
+        alpha = self.params["SPIRAL_ALPHA"] # Starting angle
+        dist_control = self.params["SPIRAL_DIST_CONTROL"] # Factor that controls the distance between loops of spiral
+        speed = self.params["SPIRAL_SPEED"] # Speed for spiral flight
+        max_flight_time = self.params["MAX_FLIGHT_TIME"]
+        dur0 = 0.25 # !=0 to avoid devision by 0 and 0.25 for a quite neat first spiral loop
+        dur = dur0
+        while dur < max_flight_time:
+          if self.vehicle.mode.name != "GUIDED":
+            logging.warning("Flight mode not Guided - aborting!")
+            break 
+          x = math.sin(alpha)*speed #alpha controles the direction, speed controls the total speed
+          y = math.cos(alpha)*speed
+          self.send_ned_velocity(x,y,0,1)
+          alpha += 1/math.sqrt(dur)*dist_control # change the angle in a way that an archimedean spiral is formed
+          dur = dur0 + int(round(time.time()))-start_s # 1
+          print('Spiral search: Flighttime: ' +str(dur) + ' s')
+
+        logging.info('left search mode') 
+
+      else:
+        logging.info('pattern '+ str(search_pattern) +' not found, search did not start')
+
+      #STEP 4: land
       self.vehicle.mode = dronekit.VehicleMode('LAND')
+
     except Exception as e:
       logging.error("Caught exeption")
       logging.error(traceback.format_exc())
       sys.exit(1)
+
 
 def main():
   logging.basicConfig(
@@ -231,8 +289,10 @@ def main():
   parser = argparse.ArgumentParser(description='Find avalanche beacon with drone')
   parser.add_argument('--connect', help="vehicle connection target string.")
   parser.add_argument('--log', help="logging level")
-  parser.add_argument('--nosearch', help="no search for beacon, only fly the search pattern",
-    action="store_true")
+  parser.add_argument('--nosearch', help="no signal detection, only fly the search pattern",
+                      action="store_true")
+  parser.add_argument('--searchpattern', help="Optional: choose a search pattern, e.g. meander (default), sprial)",
+                      default="meander")
   args = parser.parse_args()
 
   if args.log:
@@ -243,17 +303,19 @@ def main():
   else:
     logging.info("No connection specified via --connect, trying 127.0.0.1:14551")
     connection_string = "127.0.0.1:14551"
+  if args.searchpattern:
+    search_pattern = args.searchpattern
 
   #Creating SearchController Object
   if args.nosearch:
     sc = SearchController(connection_string, signal_detection = False)
   else:
     sc = SearchController(connection_string, signal_detection = True)
-  
+
   #Starting SearchCotroller Instance
-  sc.search_beacon()
+  sc.search_beacon(search_pattern)
   sys.exit(0)
-  
+
+#Only excecute main() if this script is running as __main__ (i.e. directly executed by python, not by python script)
 if __name__ == "__main__":
   main()
-
