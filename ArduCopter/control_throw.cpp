@@ -1,6 +1,5 @@
 #include "Copter.h"
 
-
 // throw_init - initialise throw controller
 bool Copter::throw_init(bool ignore_checks)
 {
@@ -18,6 +17,8 @@ bool Copter::throw_init(bool ignore_checks)
     throw_state.stage = Throw_Disarmed;
     throw_state.nextmode_attempted = false;
 
+    //disable PX4 safety (to prevent interference with BBM safety)
+    hal.rcout->force_safety_off();
     return true;
 }
 
@@ -52,27 +53,27 @@ void Copter::throw_run()
     } else if (throw_state.stage == Throw_Uprighting && throw_attitude_good()) {
         gcs_send_text(MAV_SEVERITY_INFO,"uprighted - controlling height");
         throw_state.stage = Throw_HgtStabilise;
+        if (g2.throw_type != ThrowType_Launch){
+            // initialize vertical speed and acceleration limits
+            // use brake mode values for rapid response
+            pos_control.set_speed_z(BRAKE_MODE_SPEED_Z, BRAKE_MODE_SPEED_Z);
+            pos_control.set_accel_z(BRAKE_MODE_DECEL_RATE);
 
-        // initialize vertical speed and acceleration limits
-        // use brake mode values for rapid response
-        pos_control.set_speed_z(BRAKE_MODE_SPEED_Z, BRAKE_MODE_SPEED_Z);
-        pos_control.set_accel_z(BRAKE_MODE_DECEL_RATE);
+            // initialise the demanded height to 3m above the throw height
+            // we want to rapidly clear surrounding obstacles
+            if (g2.throw_type == ThrowType_Drop) {
+                pos_control.set_alt_target(inertial_nav.get_altitude() - 100);
+            } else {
+                pos_control.set_alt_target(inertial_nav.get_altitude() + 300);
+            }
 
-        // initialise the demanded height to 3m above the throw height
-        // we want to rapidly clear surrounding obstacles
-        if (g2.throw_type == ThrowType_Drop) {
-            pos_control.set_alt_target(inertial_nav.get_altitude() - 100);
-        } else {
-            pos_control.set_alt_target(inertial_nav.get_altitude() + 300);
-        }
+            // set the initial velocity of the height controller demand to the measured velocity if it is going up
+            // if it is going down, set it to zero to enforce a very hard stop
+            pos_control.set_desired_velocity_z(fmaxf(inertial_nav.get_velocity_z(),0.0f));
 
-        // set the initial velocity of the height controller demand to the measured velocity if it is going up
-        // if it is going down, set it to zero to enforce a very hard stop
-        pos_control.set_desired_velocity_z(fmaxf(inertial_nav.get_velocity_z(),0.0f));
-
-        // Set the auto_arm status to true to avoid a possible automatic disarm caused by selection of an auto mode with throttle at minimum
-        set_auto_armed(true);
-
+            // Set the auto_arm status to true to avoid a possible automatic disarm caused by selection of an auto mode with throttle at minimum
+            set_auto_armed(true);
+    }
     } else if (throw_state.stage == Throw_HgtStabilise && throw_height_good()) {
         gcs_send_text(MAV_SEVERITY_INFO,"height achieved - controlling position");
         throw_state.stage = Throw_PosHold;
@@ -142,7 +143,8 @@ void Copter::throw_run()
         attitude_control.input_euler_angle_roll_pitch_euler_rate_yaw(0.0f, 0.0f, 0.0f, get_smoothing_gain());
 
         // output 50% throttle and turn off angle boost to maximise righting moment
-        attitude_control.set_throttle_out(0.5f, false, g.throttle_filt);
+	// CHANGED to 60% throttle
+        attitude_control.set_throttle_out(0.6f, false, g.throttle_filt);
 
         break;
 
@@ -231,6 +233,18 @@ bool Copter::throw_detected()
     // High velocity or free-fall combined with increasing height indicate a possible air-drop or throw release
     bool possible_throw_detected = (free_falling || high_speed) && changing_height && no_throw_action;
 
+    // If in launch mode, start motors immediatly once throw has been detected
+    if (g2.throw_type == ThrowType_Launch && hal.util->safety_pressed()){
+        return false;
+	gcs_send_text(MAV_SEVERITY_CRITICAL,"Possbile throw detected, but BBM Safety pressed, ABORT");
+    }
+
+    if (g2.throw_type == ThrowType_Launch && possible_throw_detected){
+        return true;
+	gcs_send_text(MAV_SEVERITY_CRITICAL,"Possbile throw detected, BBM Safety not pressed, GO");
+	//hal.rcout->force_safety_off();
+    }
+
     // Record time and vertical velocity when we detect the possible throw
     if (possible_throw_detected && ((AP_HAL::millis() - throw_state.free_fall_start_ms) > 500)) {
         throw_state.free_fall_start_ms = AP_HAL::millis();
@@ -258,12 +272,14 @@ bool Copter::throw_attitude_good()
 
 bool Copter::throw_height_good()
 {
+    if (g2.throw_type == ThrowType_Launch) return true;
     // Check that we are no more than 0.5m below the demanded height
     return (pos_control.get_alt_error() < 50.0f);
 }
 
 bool Copter::throw_position_good()
 {
+    if (g2.throw_type == ThrowType_Launch) return true;
     // check that our horizontal position error is within 50cm
     return (pos_control.get_horizontal_error() < 50.0f);
 }

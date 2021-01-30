@@ -224,4 +224,25 @@ void PX4Util::set_imu_target_temp(int8_t *target)
     _heater.target = target;
 }
 
+bool PX4Util::safety_pressed(void)
+{
+	if (_safety_handle == -1) {
+		_safety_handle = orb_subscribe(ORB_ID(safety));
+	}
+        if (_safety_handle == -1) {
+		return false;
+	}
+	struct safety_s safety;
+	if (orb_copy(ORB_ID(safety), _safety_handle, &safety) != OK) {
+		return false;
+	}
+	if (!safety.safety_switch_available) {
+		return false;
+	}
+	if (safety.safety_switch_pressed){
+		return true;
+	}
+	return false;
+}
+
 #endif // CONFIG_HAL_BOARD == HAL_BOARD_PX4

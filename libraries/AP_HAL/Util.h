@@ -41,6 +41,11 @@ public:
     virtual enum safety_state safety_switch_state(void) { return SAFETY_NONE; }
 
     /*
+       return current safety switch state
+     */
+    virtual bool safety_pressed(void) { return false; }
+
+    /*
       set system clock in UTC microseconds
      */
     virtual void set_system_clock(uint64_t time_utc_usec) {}

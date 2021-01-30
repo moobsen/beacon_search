@@ -60,6 +60,7 @@ public:
 
     void set_imu_temp(float current) override;
     void set_imu_target_temp(int8_t *target) override;
+    bool safety_pressed(void);
     
 private:
     int _safety_handle;

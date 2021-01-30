@@ -268,7 +268,8 @@ enum ThrowModeStage {
 // Throw types
 enum ThrowModeType {
     ThrowType_Upward = 0,
-    ThrowType_Drop = 1
+    ThrowType_Drop = 1,
+    ThrowType_Launch = 2
 };
 
 enum LandStateType {

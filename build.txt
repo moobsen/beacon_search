@@ -1,0 +1,2 @@
+./waf configure --board px4-v4 --target copter
+./waf --target bin/arducopter-quad --upload

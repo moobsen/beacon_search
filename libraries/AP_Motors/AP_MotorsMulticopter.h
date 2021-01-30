@@ -27,7 +27,7 @@
 #define AP_MOTORS_BATT_VOLT_FILT_HZ     0.5f    // battery voltage filtered at 0.5hz
 
 // spool definition
-#define AP_MOTORS_SPOOL_UP_TIME         0.5f    // time (in seconds) for throttle to increase from zero to min throttle, and min throttle to full throttle.
+#define AP_MOTORS_SPOOL_UP_TIME         0.1f    // time (in seconds) for throttle to increase from zero to min throttle, and min throttle to full throttle.
 
 /// @class      AP_MotorsMulticopter
 class AP_MotorsMulticopter : public AP_Motors {
